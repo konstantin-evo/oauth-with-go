@@ -6,15 +6,23 @@
     <title>Document</title>
 </head>
 <body>
-    <a href="/login">
-        <button>
-            Login with KeyCloak
-        </button>
-    </a>
-    <a href="/logout">
-        <button>
-            Logout
-        </button>
-    </a>
+    <div>
+        <a href="/login">
+            <button>
+                Login with KeyCloak
+            </button>
+        </a>
+    </div>
+    <div>
+        <a href="/logout">
+            <button>
+                Logout
+            </button>
+        </a>
+    </div>
+    <div>
+        <p>Auth code: {{.AuthCode}}</p>
+        <p>Session: {{.SessionState}}</p>
+    </div>
 </body>
 </html>

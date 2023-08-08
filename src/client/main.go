@@ -16,11 +16,6 @@ type config struct {
 	AuthCodeCallback string
 }
 
-type authSession struct {
-	AuthCode     string
-	SessionState string
-}
-
 func main() {
 
 	app := config{
@@ -33,7 +28,7 @@ func main() {
 
 	r := mux.NewRouter()
 	r.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		homeHandler(w, r, &app)
+		homeHandler(w, r)
 	})
 	r.HandleFunc("/login", func(w http.ResponseWriter, r *http.Request) {
 		loginHandler(w, r, &app)
@@ -42,7 +37,7 @@ func main() {
 		logoutHandler(w, r, &app)
 	})
 	r.HandleFunc("/authCodeRedirect", func(w http.ResponseWriter, r *http.Request) {
-		authCodeRedirectHandler(w, r, &authSession{})
+		authCodeRedirectHandler(w, r)
 	})
 
 	port := os.Getenv("PORT")
