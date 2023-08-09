@@ -1,12 +1,21 @@
 package main
 
 import (
+	"bytes"
+	"encoding/json"
+	"fmt"
+	"github.com/gorilla/sessions"
 	"html/template"
+	"io"
 	"log"
 	"net/http"
 	"net/url"
+)
 
-	"github.com/gorilla/sessions"
+const (
+	AuthCodeKey     = "AuthCode"
+	SessionStateKey = "SessionState"
+	AccessTokenKey  = "AccessToken"
 )
 
 var t = template.Must(template.ParseFiles("template/index.html"))
@@ -14,34 +23,31 @@ var store = sessions.NewCookieStore([]byte("your-secret-key"))
 
 type authSession struct {
 	AuthCode     string
+	AccessToken  string
 	SessionState string
 }
 
-// Handle the home page
+type tokenResponseData struct {
+	AccessToken  string `json:"access_token"`
+	TokenType    string `json:"token_type"`
+	ExpiresIn    int    `json:"expires_in"`
+	RefreshToken string `json:"refresh_token"`
+	Scope        string `json:"scope"`
+}
+
 func homeHandler(w http.ResponseWriter, r *http.Request) {
-	// Get the session
 	session, _ := store.Get(r, "session-name")
 
-	// Retrieve AuthCode and SessionState from session
-	authCodeValue := session.Values["AuthCode"]
-	sessionStateValue := session.Values["SessionState"]
+	authCode := getSessionValue(session, AuthCodeKey)
+	sessionState := getSessionValue(session, SessionStateKey)
+	accessToken := getSessionValue(session, AccessTokenKey)
 
-	// Check if authCodeValue and sessionStateValue are not nil before type asserting
-	var authCode, sessionState string
-	if authCodeValue != nil {
-		authCode = authCodeValue.(string)
-	}
-	if sessionStateValue != nil {
-		sessionState = sessionStateValue.(string)
-	}
-
-	// Populate the data structure for template rendering
 	data := authSession{
 		AuthCode:     authCode,
+		AccessToken:  accessToken,
 		SessionState: sessionState,
 	}
 
-	// Execute the template with the data
 	err := t.Execute(w, data)
 	if err != nil {
 		log.Println("Template execution error:", err)
@@ -53,40 +59,99 @@ func loginHandler(w http.ResponseWriter, r *http.Request, appVar *config) {
 	http.Redirect(w, r, redirectURL, http.StatusFound)
 }
 
-// Handle the logout process
 func logoutHandler(w http.ResponseWriter, r *http.Request, appVar *config) {
-	// Get the session
 	session, _ := store.Get(r, "session-name")
 
-	// Clear AuthCode and SessionState from the session
-	delete(session.Values, "AuthCode")
-	delete(session.Values, "SessionState")
+	delete(session.Values, AuthCodeKey)
+	delete(session.Values, SessionStateKey)
 
-	// Save the session
 	err := session.Save(r, w)
 	if err != nil {
 		log.Println("Error saving session:", err)
 	}
 
-	// Redirect to the logout URL
 	redirectURL := buildLogoutURL(appVar)
 	http.Redirect(w, r, redirectURL, http.StatusFound)
 }
 
-// Handle the callback after authorization code is received
 func authCodeRedirectHandler(w http.ResponseWriter, r *http.Request) {
-	// Get the session
 	session, _ := store.Get(r, "session-name")
 
-	// Store AuthCode and SessionState in the session
-	session.Values["AuthCode"] = r.URL.Query().Get("code")
-	session.Values["SessionState"] = r.URL.Query().Get("session_state")
+	session.Values[AuthCodeKey] = r.URL.Query().Get("code")
+	session.Values[SessionStateKey] = r.URL.Query().Get("session_state")
 	session.Save(r, w)
 
-	// Clear the query parameters and redirect to the home page
 	r.URL.RawQuery = ""
 	log.Printf("Request queries: %+v", session.Values)
 	http.Redirect(w, r, "/", http.StatusSeeOther)
+}
+
+func tokenHandler(w http.ResponseWriter, r *http.Request, appVar *config) {
+	session, _ := store.Get(r, "session-name")
+	authCode := getSessionValue(session, AuthCodeKey)
+
+	if authCode == "" {
+		http.Error(w, "Authorization code not found", http.StatusBadRequest)
+		return
+	}
+
+	token, err := exchangeAuthCodeForToken(authCode, appVar)
+	if err != nil {
+		log.Println("Error exchanging auth code for token:", err)
+		http.Error(w, "Failed to exchange authorization code for token", http.StatusInternalServerError)
+		return
+	}
+
+	session.Values[AccessTokenKey] = token
+	err = session.Save(r, w)
+	if err != nil {
+		log.Println("Error saving session:", err)
+		http.Error(w, "Failed to save session", http.StatusInternalServerError)
+		return
+	}
+
+	delete(session.Values, AuthCodeKey)
+	session.Save(r, w)
+
+	http.Redirect(w, r, "/", http.StatusSeeOther)
+}
+
+func exchangeAuthCodeForToken(authCode string, appVar *config) (string, error) {
+	data := url.Values{}
+	data.Set("grant_type", "authorization_code")
+	data.Set("client_id", appVar.AppID)
+	data.Set("client_secret", "oRVEzP9Co9NOVLnn8hoQ7ENdVeAM1A4X")
+	data.Set("code", authCode)
+	data.Set("redirect_uri", appVar.AuthCodeCallback)
+
+	req, err := http.NewRequest("POST", appVar.TokenURL, bytes.NewBufferString(data.Encode()))
+	if err != nil {
+		return "", err
+	}
+
+	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		responseBody, _ := io.ReadAll(resp.Body)
+		resp.Body.Close()
+		return "", fmt.Errorf("token request returned status code %d. Response body: %s", resp.StatusCode, responseBody)
+	}
+
+	var tokenResponse tokenResponseData
+
+	err = json.NewDecoder(resp.Body).Decode(&tokenResponse)
+	if err != nil {
+		return "", err
+	}
+
+	return tokenResponse.AccessToken, nil
 }
 
 func buildAuthURL(appVar *config) string {
@@ -107,7 +172,6 @@ func buildAuthURL(appVar *config) string {
 }
 
 func buildLogoutURL(appVar *config) string {
-
 	u, err := url.Parse(appVar.LogoutURL)
 	if err != nil {
 		log.Println(err)
@@ -119,4 +183,12 @@ func buildLogoutURL(appVar *config) string {
 	u.RawQuery = q.Encode()
 
 	return u.String()
+}
+
+func getSessionValue(session *sessions.Session, key string) string {
+	value := session.Values[key]
+	if value != nil {
+		return value.(string)
+	}
+	return ""
 }

@@ -6,28 +6,21 @@
     <title>Document</title>
     <!-- Add Bootstrap CSS link -->
     <link rel="stylesheet" href="../src/css/bootstrap-4.5.2.min.css">
-    <style>
-        .card {
-            height: 100%;
-        }
-
-        .lock-icon img {
-            max-width: 80%;
-            display: block;
-            margin: 0 auto;
-        }
-    </style>
 </head>
 <body>
 <nav class="navbar navbar-expand-lg navbar-light bg-light">
     <a class="navbar-brand" href="#">Auth App</a>
-    <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+    <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav"
+            aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
         <span class="navbar-toggler-icon"></span>
     </button>
     <div class="collapse navbar-collapse" id="navbarNav">
         <ul class="navbar-nav ml-auto">
             <li class="nav-item">
                 <a class="nav-link" href="/login">Login</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="/token">Get token</a>
             </li>
             <li class="nav-item">
                 <a class="nav-link" href="/logout">Logout</a>
@@ -37,18 +30,19 @@
 </nav>
 
 <div class="container mt-4">
+    <div class="d-flex justify-content-center align-items-center mb-4">
+        {{if .SessionState}}
+        <img class="w-25" src="../src/img/lock-open.svg" alt="Open Lock Icon">
+        {{else}}
+        <img class="w-25" src="../src/img/lock-closed.svg" alt="Closed Lock Icon">
+        {{end}}
+    </div>
+
+    {{if .SessionState}}
     <div class="row">
         <div class="col-md-4 mb-4">
             <div class="card h-100">
-                <div class="card-body">
-                    <h5 class="card-title">Auth Code</h5>
-                    <p class="card-text">{{.AuthCode}}</p>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-4 mb-4">
-            <div class="card h-100">
-                <div class="card-body">
+                <div class="card-body overflow-auto">
                     <h5 class="card-title">Session State</h5>
                     <p class="card-text">{{.SessionState}}</p>
                 </div>
@@ -56,16 +50,22 @@
         </div>
         <div class="col-md-4 mb-4">
             <div class="card h-100">
-                <div class="card-body text-center lock-icon">
-                    {{if .SessionState}}
-                    <img src="../src/img/lock-open.svg" alt="Open Lock Icon">
-                    {{else}}
-                    <img src="../src/img/lock-closed.svg" alt="Closed Lock Icon">
-                    {{end}}
+                <div class="card-body overflow-auto">
+                    <h5 class="card-title">Auth code</h5>
+                    <p class="card-text">{{.AuthCode}}</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 mb-4">
+            <div class="card h-100">
+                <div class="card-body overflow-auto">
+                    <h5 class="card-title">AccessToken</h5>
+                    <p class="card-text">{{.AccessToken}}</p>
                 </div>
             </div>
         </div>
     </div>
+    {{end}}
 </div>
 
 <!-- Add Bootstrap JS and jQuery scripts -->
