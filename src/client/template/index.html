@@ -4,25 +4,73 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Document</title>
+    <!-- Add Bootstrap CSS link -->
+    <link rel="stylesheet" href="../src/css/bootstrap-4.5.2.min.css">
+    <style>
+        .card {
+            height: 100%;
+        }
+
+        .lock-icon img {
+            max-width: 80%;
+            display: block;
+            margin: 0 auto;
+        }
+    </style>
 </head>
 <body>
-    <div>
-        <a href="/login">
-            <button>
-                Login with KeyCloak
-            </button>
-        </a>
+<nav class="navbar navbar-expand-lg navbar-light bg-light">
+    <a class="navbar-brand" href="#">Auth App</a>
+    <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+    </button>
+    <div class="collapse navbar-collapse" id="navbarNav">
+        <ul class="navbar-nav ml-auto">
+            <li class="nav-item">
+                <a class="nav-link" href="/login">Login</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="/logout">Logout</a>
+            </li>
+        </ul>
     </div>
-    <div>
-        <a href="/logout">
-            <button>
-                Logout
-            </button>
-        </a>
+</nav>
+
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-4 mb-4">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h5 class="card-title">Auth Code</h5>
+                    <p class="card-text">{{.AuthCode}}</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 mb-4">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h5 class="card-title">Session State</h5>
+                    <p class="card-text">{{.SessionState}}</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 mb-4">
+            <div class="card h-100">
+                <div class="card-body text-center lock-icon">
+                    {{if .SessionState}}
+                    <img src="../src/img/lock-open.svg" alt="Open Lock Icon">
+                    {{else}}
+                    <img src="../src/img/lock-closed.svg" alt="Closed Lock Icon">
+                    {{end}}
+                </div>
+            </div>
+        </div>
     </div>
-    <div>
-        <p>Auth code: {{.AuthCode}}</p>
-        <p>Session: {{.SessionState}}</p>
-    </div>
+</div>
+
+<!-- Add Bootstrap JS and jQuery scripts -->
+<script src="../src/js/jquery-3.5.1.slim.min.js"></script>
+<script src="../src/js/popper-2.9.1.min.js"></script>
+<script src="../src/js/bootstrap-4.5.2.min.js"></script>
 </body>
 </html>

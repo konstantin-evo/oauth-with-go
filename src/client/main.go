@@ -27,6 +27,13 @@ func main() {
 	}
 
 	r := mux.NewRouter()
+
+	// Create a file server to serve static files from the "src" directory,
+	// Specify a prefix for static files and attach the file server to the route for serving static files
+	staticFileServer := http.FileServer(http.Dir("src"))
+	staticFilesRoute := "/src/"
+	r.PathPrefix(staticFilesRoute).Handler(http.StripPrefix(staticFilesRoute, staticFileServer))
+
 	r.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		homeHandler(w, r)
 	})
