@@ -12,7 +12,7 @@
 <div>
     <p align="center">
         <br />
-        <a href="#running-the-application">About Project</a>
+        <a href="#about-project">About Project</a>
         ·
         <a href=mailto:"konstantin.priluchnyi@gmail.com?subject=report%20Bug">Report Bug</a>
         ·
@@ -33,6 +33,41 @@
 </div>
 
 This repository contains an OAuth client built in Go that integrates with Keycloak for authentication and authorization.
+
+## About project
+
+This project is a Go-based authentication client designed to interact with a keycloak authentication server. The client
+facilitates user authentication and token management through a simple web interface.
+
+The project directory structure is as follows:
+
+```
+.
+│   docker-compose.yml
+│   README.MD
+├───go-auth-client
+│   │   Dockerfile
+│   │   go.mod
+│   │   handlers.go
+│   │   main.go
+│   ├───src
+│   │   └─── css / js / img
+│   └───template
+│ 
+├───keycloak-auth-server
+│   │   Dockerfile
+│   └───data
+│
+└───src
+```
+
+The `docker-compose.yml` file defines the services for the Keycloak authentication server and the Go OAuth client.
+
+The Go OAuth client code is located in the `/go-auth-client` directory. It uses the Gorilla Mux library for handling
+routes and HTTP requests.
+
+The Keycloak configuration files are in the `/keycloak-auth-server` directory, including the `Dockerfile` and a sample
+realm configuration file (`realm-export.json`).
 
 ## Running the Application
 
@@ -63,33 +98,3 @@ For testing authentication and authorization, you can use the following test use
 
 - Username: `myUser`
 - Password: `1111`
-
-## Project Structure
-
-The project directory structure is as follows:
-
-```
-├── README.MD
-├── docker-compose.yml
-└── src
-    ├── client
-    │   ├── Dockerfile
-    │   ├── go.mod
-    │   ├── go.sum
-    │   ├── handlers.go
-    │   ├── main.go
-    │   └── template
-    │       └── index.html
-    └── keycloak
-        ├── Dockerfile
-        └── data
-            └── realm-export.json
-```
-
-The `docker-compose.yml` file defines the services for the Keycloak authentication server and the Go OAuth client.
-
-The Go OAuth client code is located in the `src/client` directory. It uses the Gorilla Mux library for handling routes
-and HTTP requests.
-
-The Keycloak configuration files are in the `src/keycloak` directory, including the `Dockerfile` and a sample realm
-configuration file (`realm-export.json`).

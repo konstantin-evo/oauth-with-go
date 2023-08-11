@@ -2,7 +2,7 @@ version: '3'
 services:
   keycloak-auth-server:
     build:
-      context: ./src/keycloak
+      context: ./keycloak-auth-server
       dockerfile: Dockerfile
     container_name: keycloak
     ports:
@@ -12,7 +12,7 @@ services:
       - KEYCLOAK_ADMIN_PASSWORD=admin
   go-auth-client:
     build:
-      context: ./src/client
+      context: ./go-auth-client
       dockerfile: Dockerfile
     container_name: go-app
     ports:
