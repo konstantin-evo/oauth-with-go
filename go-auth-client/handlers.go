@@ -18,10 +18,10 @@ const (
 	AccessTokenKey  = "AccessToken"
 )
 
-var t = template.Must(template.ParseFiles("template/index.html"))
+var t = template.Must(template.ParseFiles("src/template/index.html"))
 var store = sessions.NewCookieStore([]byte("your-secret-key"))
 
-type authSession struct {
+type frontData struct {
 	AuthCode     string
 	AccessToken  string
 	SessionState string
@@ -42,7 +42,7 @@ func homeHandler(w http.ResponseWriter, r *http.Request) {
 	sessionState := getSessionValue(session, SessionStateKey)
 	accessToken := getSessionValue(session, AccessTokenKey)
 
-	data := authSession{
+	data := frontData{
 		AuthCode:     authCode,
 		AccessToken:  accessToken,
 		SessionState: sessionState,
@@ -74,15 +74,34 @@ func logoutHandler(w http.ResponseWriter, r *http.Request, appVar *config) {
 	http.Redirect(w, r, redirectURL, http.StatusFound)
 }
 
-func authCodeRedirectHandler(w http.ResponseWriter, r *http.Request) {
+func authCodeRedirectHandler(w http.ResponseWriter, r *http.Request, appVar *config) {
 	session, _ := store.Get(r, "session-name")
 
-	session.Values[AuthCodeKey] = r.URL.Query().Get("code")
-	session.Values[SessionStateKey] = r.URL.Query().Get("session_state")
+	authCode := r.URL.Query().Get("code")
+	sessionState := r.URL.Query().Get("session_state")
+
+	// Save auth code and session state in the session
+	session.Values[AuthCodeKey] = authCode
+	session.Values[SessionStateKey] = sessionState
 	session.Save(r, w)
 
-	r.URL.RawQuery = ""
-	log.Printf("Request queries: %+v", session.Values)
+	// Exchange auth code for token
+	token, err := exchangeAuthCodeForToken(authCode, appVar)
+	if err != nil {
+		log.Println("Error exchanging auth code for token:", err)
+		http.Error(w, "Failed to exchange authorization code for token", http.StatusInternalServerError)
+		return
+	}
+
+	// Save token in the session
+	session.Values[AccessTokenKey] = token
+	err = session.Save(r, w)
+	if err != nil {
+		log.Println("Error saving session:", err)
+		http.Error(w, "Failed to save session", http.StatusInternalServerError)
+		return
+	}
+
 	http.Redirect(w, r, "/", http.StatusSeeOther)
 }
 
@@ -120,7 +139,7 @@ func exchangeAuthCodeForToken(authCode string, appVar *config) (string, error) {
 	data := url.Values{}
 	data.Set("grant_type", "authorization_code")
 	data.Set("client_id", appVar.AppID)
-	data.Set("client_secret", "oRVEzP9Co9NOVLnn8hoQ7ENdVeAM1A4X")
+	data.Set("client_secret", "1ANIYGdYJhdeMjXOn6qrSmMU9wiUkXQ2")
 	data.Set("code", authCode)
 	data.Set("redirect_uri", appVar.AuthCodeCallback)
 

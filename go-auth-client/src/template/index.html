@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
+    <title>Auth client</title>
     <!-- Add Bootstrap CSS link -->
     <link rel="stylesheet" href="../src/css/bootstrap-4.5.2.min.css">
 </head>
@@ -17,13 +17,11 @@
     <div class="collapse navbar-collapse" id="navbarNav">
         <ul class="navbar-nav ml-auto">
             <li class="nav-item">
-                <a class="nav-link" href="/login">Login</a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link" href="/token">Get token</a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link" href="/logout">Logout</a>
+                {{if .SessionState}}
+                <a href="/logout" class="btn btn-secondary">Logout</a>
+                {{else}}
+                <a href="/login" class="btn btn-secondary">Login</a>
+                {{end}}
             </li>
         </ul>
     </div>
