@@ -36,29 +36,29 @@
         {{end}}
     </div>
 
+<div class="container mt-4">
     {{if .SessionState}}
     <div class="row">
-        <div class="col-md-4 mb-4">
+        <div class="col-md-6 mb-4">
             <div class="card h-100">
+                <div class="card-header">
+                    Token Details
+                </div>
                 <div class="card-body overflow-auto">
-                    <h5 class="card-title">Session State</h5>
-                    <p class="card-text">{{.SessionState}}</p>
+                    {{range $field, $value := .Token}}
+                    <h6 class="card-subtitle mb-2 text-muted">{{$field}}</h6>
+                    <p class="card-text">{{$value}}</p>
+                    {{end}}
                 </div>
             </div>
         </div>
-        <div class="col-md-4 mb-4">
+        <div class="col-md-6 mb-4">
             <div class="card h-100">
-                <div class="card-body overflow-auto">
-                    <h5 class="card-title">Auth code</h5>
-                    <p class="card-text">{{.AuthCode}}</p>
+                <div class="card-header">
+                    Protected resource
                 </div>
-            </div>
-        </div>
-        <div class="col-md-4 mb-4">
-            <div class="card h-100">
                 <div class="card-body overflow-auto">
-                    <h5 class="card-title">AccessToken</h5>
-                    <p class="card-text">{{.AccessToken}}</p>
+                    <p class="card-text"></p>
                 </div>
             </div>
         </div>

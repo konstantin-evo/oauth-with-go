@@ -20,11 +20,11 @@ const (
 
 var t = template.Must(template.ParseFiles("src/template/index.html"))
 var store = sessions.NewCookieStore([]byte("your-secret-key"))
+var tokenResponse tokenResponseData
 
 type frontData struct {
-	AuthCode     string
-	AccessToken  string
 	SessionState string
+	Token        map[string]interface{}
 }
 
 type tokenResponseData struct {
@@ -38,14 +38,9 @@ type tokenResponseData struct {
 func homeHandler(w http.ResponseWriter, r *http.Request) {
 	session, _ := store.Get(r, "session-name")
 
-	authCode := getSessionValue(session, AuthCodeKey)
-	sessionState := getSessionValue(session, SessionStateKey)
-	accessToken := getSessionValue(session, AccessTokenKey)
-
 	data := frontData{
-		AuthCode:     authCode,
-		AccessToken:  accessToken,
-		SessionState: sessionState,
+		SessionState: getSessionValue(session, SessionStateKey),
+		Token:        tokenResponseToMap(tokenResponse),
 	}
 
 	err := t.Execute(w, data)
@@ -105,36 +100,6 @@ func authCodeRedirectHandler(w http.ResponseWriter, r *http.Request, appVar *con
 	http.Redirect(w, r, "/", http.StatusSeeOther)
 }
 
-func tokenHandler(w http.ResponseWriter, r *http.Request, appVar *config) {
-	session, _ := store.Get(r, "session-name")
-	authCode := getSessionValue(session, AuthCodeKey)
-
-	if authCode == "" {
-		http.Error(w, "Authorization code not found", http.StatusBadRequest)
-		return
-	}
-
-	token, err := exchangeAuthCodeForToken(authCode, appVar)
-	if err != nil {
-		log.Println("Error exchanging auth code for token:", err)
-		http.Error(w, "Failed to exchange authorization code for token", http.StatusInternalServerError)
-		return
-	}
-
-	session.Values[AccessTokenKey] = token
-	err = session.Save(r, w)
-	if err != nil {
-		log.Println("Error saving session:", err)
-		http.Error(w, "Failed to save session", http.StatusInternalServerError)
-		return
-	}
-
-	delete(session.Values, AuthCodeKey)
-	session.Save(r, w)
-
-	http.Redirect(w, r, "/", http.StatusSeeOther)
-}
-
 func exchangeAuthCodeForToken(authCode string, appVar *config) (string, error) {
 	data := url.Values{}
 	data.Set("grant_type", "authorization_code")
@@ -162,8 +127,6 @@ func exchangeAuthCodeForToken(authCode string, appVar *config) (string, error) {
 		resp.Body.Close()
 		return "", fmt.Errorf("token request returned status code %d. Response body: %s", resp.StatusCode, responseBody)
 	}
-
-	var tokenResponse tokenResponseData
 
 	err = json.NewDecoder(resp.Body).Decode(&tokenResponse)
 	if err != nil {
@@ -210,4 +173,14 @@ func getSessionValue(session *sessions.Session, key string) string {
 		return value.(string)
 	}
 	return ""
+}
+
+func tokenResponseToMap(response tokenResponseData) map[string]interface{} {
+	data := make(map[string]interface{})
+	data["AccessToken"] = response.AccessToken
+	data["TokenType"] = response.TokenType
+	data["ExpiresIn"] = response.ExpiresIn
+	data["RefreshToken"] = response.RefreshToken
+	data["Scope"] = response.Scope
+	return data
 }

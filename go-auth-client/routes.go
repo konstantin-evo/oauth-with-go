@@ -25,9 +25,6 @@ func routes(app *config) *mux.Router {
 	router.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		homeHandler(w, r)
 	})
-	router.HandleFunc("/token", func(w http.ResponseWriter, r *http.Request) {
-		tokenHandler(w, r, app)
-	})
 	router.HandleFunc("/login", func(w http.ResponseWriter, r *http.Request) {
 		loginHandler(w, r, app)
 	})
