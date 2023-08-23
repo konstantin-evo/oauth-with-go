@@ -38,7 +38,7 @@
     <p class="lead">Secure your resources with our authentication solution.</p>
 
     {{if .SessionState}}
-    <a href="/services" class="btn btn-primary btn-lg mt-4">Get protected resource</a>
+    <button id="get-protected-resource" class="btn btn-primary btn-lg mt-4">Get protected resource</button>
     {{end}}
 </div>
 
@@ -65,8 +65,9 @@
                 <div class="card-header">
                     Protected resource
                 </div>
-                    {{block "services" .Services}}
-                    {{end}}
+                <div id="protected-resource-details" class="card-body">
+                    <!-- Services will be displayed here -->
+                </div>
             </div>
         </div>
     </div>
@@ -77,5 +78,6 @@
 <script src="../src/js/jquery-3.5.1.slim.min.js"></script>
 <script src="../src/js/popper-2.9.1.min.js"></script>
 <script src="../src/js/bootstrap-4.5.2.min.js"></script>
+<script src="../src/js/main.js"></script>
 </body>
 </html>

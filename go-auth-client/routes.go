@@ -12,7 +12,7 @@ import (
 	"github.com/gorilla/mux"
 )
 
-func routes(app *config) *mux.Router {
+func routes(handlerConfig *HandlerConfig) *mux.Router {
 	router := mux.NewRouter()
 	router.Use(loggingMiddleware)
 
@@ -23,19 +23,19 @@ func routes(app *config) *mux.Router {
 	router.PathPrefix(staticFilesRoute).Handler(http.StripPrefix(staticFilesRoute, staticFileServer))
 
 	router.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		homeHandler(w, r)
+		homeHandler(w, r, handlerConfig)
 	})
 	router.HandleFunc("/login", func(w http.ResponseWriter, r *http.Request) {
-		loginHandler(w, r, app)
+		loginHandler(w, r, handlerConfig)
 	})
 	router.HandleFunc("/services", func(w http.ResponseWriter, r *http.Request) {
-		servicesHandler(w, r, app)
+		servicesHandler(w, r, handlerConfig)
 	})
 	router.HandleFunc("/logout", func(w http.ResponseWriter, r *http.Request) {
-		logoutHandler(w, r, app)
+		logoutHandler(w, r, handlerConfig)
 	})
 	router.HandleFunc("/authCodeRedirect", func(w http.ResponseWriter, r *http.Request) {
-		authCodeRedirectHandler(w, r, app)
+		authCodeRedirectHandler(w, r, handlerConfig)
 	})
 
 	return router

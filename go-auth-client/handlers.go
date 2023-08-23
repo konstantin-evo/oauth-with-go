@@ -22,38 +22,35 @@ const (
 	AccessTokenKey  = "AccessToken"
 )
 
-type frontData struct {
-	SessionState string
-	Token        map[string]interface{}
-	Services     []string
+type HandlerConfig struct {
+	AppVar   *config
+	Store    *sessions.CookieStore
+	Template *template.Template
 }
 
-var t = template.Must(template.ParseFiles("src/template/index.html"))
-var tServices = template.Must(template.ParseFiles("src/template/index.html", "src/template/services.html"))
-var store = sessions.NewCookieStore([]byte("your-secret-key"))
 var tokenResponse model.TokenResponseData
 
-func homeHandler(w http.ResponseWriter, r *http.Request) {
-	session, _ := store.Get(r, "session-name")
+func homeHandler(w http.ResponseWriter, r *http.Request, config *HandlerConfig) {
+	session, _ := config.Store.Get(r, "session-name")
 
-	data := frontData{
+	data := model.FrontData{
 		SessionState: getSessionValue(session, SessionStateKey),
 		Token:        tokenResponseToMap(tokenResponse),
 	}
 
-	err := t.Execute(w, data)
+	err := config.Template.Execute(w, data)
 	if err != nil {
 		log.Println("Template execution error:", err)
 	}
 }
 
-func loginHandler(w http.ResponseWriter, r *http.Request, appVar *config) {
-	redirectURL := buildAuthURL(appVar)
+func loginHandler(w http.ResponseWriter, r *http.Request, config *HandlerConfig) {
+	redirectURL := buildAuthURL(config.AppVar)
 	http.Redirect(w, r, redirectURL, http.StatusFound)
 }
 
-func logoutHandler(w http.ResponseWriter, r *http.Request, appVar *config) {
-	session, _ := store.Get(r, "session-name")
+func logoutHandler(w http.ResponseWriter, r *http.Request, config *HandlerConfig) {
+	session, _ := config.Store.Get(r, "session-name")
 
 	delete(session.Values, AuthCodeKey)
 	delete(session.Values, SessionStateKey)
@@ -63,12 +60,12 @@ func logoutHandler(w http.ResponseWriter, r *http.Request, appVar *config) {
 		log.Println("Error saving session:", err)
 	}
 
-	redirectURL := buildLogoutURL(appVar)
+	redirectURL := buildLogoutURL(config.AppVar)
 	http.Redirect(w, r, redirectURL, http.StatusFound)
 }
 
-func authCodeRedirectHandler(w http.ResponseWriter, r *http.Request, appVar *config) {
-	session, _ := store.Get(r, "session-name")
+func authCodeRedirectHandler(w http.ResponseWriter, r *http.Request, config *HandlerConfig) {
+	session, _ := config.Store.Get(r, "session-name")
 
 	authCode := r.URL.Query().Get("code")
 	sessionState := r.URL.Query().Get("session_state")
@@ -79,7 +76,7 @@ func authCodeRedirectHandler(w http.ResponseWriter, r *http.Request, appVar *con
 	session.Save(r, w)
 
 	// Exchange auth code for token
-	token, err := exchangeAuthCodeForToken(authCode, appVar)
+	token, err := exchangeAuthCodeForToken(authCode, config.AppVar)
 	if err != nil {
 		log.Println("Error exchanging auth code for token:", err)
 		http.Error(w, "Failed to exchange authorization code for token", http.StatusInternalServerError)
@@ -98,23 +95,28 @@ func authCodeRedirectHandler(w http.ResponseWriter, r *http.Request, appVar *con
 	http.Redirect(w, r, "/", http.StatusSeeOther)
 }
 
-func servicesHandler(w http.ResponseWriter, r *http.Request, appVar *config) {
-	req, err := http.NewRequest("GET", appVar.ServicesURL, nil)
+func servicesHandler(w http.ResponseWriter, r *http.Request, config *HandlerConfig) {
+	// Create a request to the protected resource endpoint
+	req, err := http.NewRequest("GET", config.AppVar.ServicesURL, nil)
 	if err != nil {
 		log.Println("Error creating a new HTTP request:", err)
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
 	}
 
 	ctx, cancelFunc := context.WithTimeout(context.Background(), 500*time.Millisecond)
 	defer cancelFunc()
 
-	c := http.Client{}
+	// Send the request and handle the response
+	c := &http.Client{}
 	res, err := c.Do(req.WithContext(ctx))
 	if err != nil {
 		log.Println("Error sending HTTP request:", err)
 		return
 	}
+	defer res.Body.Close()
 
+	// Read and parse the response
 	byteBody, err := io.ReadAll(res.Body)
 	if err != nil {
 		log.Println("Error reading response body:", err)
@@ -128,16 +130,17 @@ func servicesHandler(w http.ResponseWriter, r *http.Request, appVar *config) {
 		return
 	}
 
-	session, _ := store.Get(r, "session-name")
-	data := frontData{
-		SessionState: getSessionValue(session, SessionStateKey),
-		Token:        tokenResponseToMap(tokenResponse),
-		Services:     billingResponse.Services,
+	// Prepare the JSON response with only the services
+	jsonResponse := map[string]interface{}{
+		"services": billingResponse.Services,
 	}
 
-	err = tServices.Execute(w, data)
+	// Marshal the JSON and send the response
+	w.Header().Set("Content-Type", "application/json")
+	err = json.NewEncoder(w).Encode(jsonResponse)
 	if err != nil {
-		log.Println("Template execution error:", err)
+		log.Println("Error encoding JSON response:", err)
+		return
 	}
 }
 

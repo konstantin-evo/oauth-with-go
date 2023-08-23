@@ -2,6 +2,8 @@ package main
 
 import (
 	"fmt"
+	"github.com/gorilla/sessions"
+	"html/template"
 	"log"
 	"net/http"
 	"os"
@@ -26,10 +28,16 @@ func main() {
 		log.Panic(err)
 	}
 
+	// Load handler config
+	handlerConfig, err := loadHandlerConfig(app)
+	if err != nil {
+		log.Panic(err)
+	}
+
 	// Start the HTTP server
 	server := &http.Server{
 		Addr:    fmt.Sprintf(":%s", app.WebPort),
-		Handler: routes(app),
+		Handler: routes(handlerConfig),
 	}
 
 	if err := server.ListenAndServe(); err != nil {
@@ -56,4 +64,17 @@ func loadConfig() (*config, error) {
 	}
 
 	return &app, nil
+}
+
+func loadHandlerConfig(app *config) (*HandlerConfig, error) {
+	store := sessions.NewCookieStore([]byte("your-secret-key"))
+
+	// Загрузка шаблона из файла
+	t := template.Must(template.ParseFiles("src/template/index.html"))
+
+	return &HandlerConfig{
+		AppVar:   app,
+		Store:    store,
+		Template: t,
+	}, nil
 }
