@@ -12,7 +12,7 @@ type Billing struct {
 func servicesHandler(w http.ResponseWriter, r *http.Request) {
 	s := Billing{
 		Services: []string{
-			"electir",
+			"electric",
 			"phone",
 			"internet",
 			"water",

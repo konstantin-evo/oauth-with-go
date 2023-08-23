@@ -1,0 +1,9 @@
+{{define "services"}}
+<div class="card-body overflow-auto">
+    <div class="card-body overflow-auto">
+        {{range $field, $value := .}}
+        <p class="card-text">{{$value}}</p>
+        {{end}}
+    </div>
+</div>
+{{end}}

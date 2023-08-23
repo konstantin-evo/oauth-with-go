@@ -14,6 +14,7 @@ type config struct {
 	LogoutURL        string
 	LogoutRedirect   string
 	AuthCodeCallback string
+	ServicesURL      string
 	WebPort          string
 }
 
@@ -50,6 +51,7 @@ func loadConfig() (*config, error) {
 		TokenURL:         "http://localhost:8081/realms/customRealm/protocol/openid-connect/token",
 		LogoutRedirect:   "http://localhost:8080/",
 		AuthCodeCallback: "http://localhost:8080/authCodeRedirect",
+		ServicesURL:      "http://localhost:8082/billing/v1/services",
 		WebPort:          port,
 	}
 

@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"github.com/gorilla/sessions"
@@ -10,6 +11,9 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"time"
+
+	"learn.oauth.client/model"
 )
 
 const (
@@ -18,22 +22,16 @@ const (
 	AccessTokenKey  = "AccessToken"
 )
 
-var t = template.Must(template.ParseFiles("src/template/index.html"))
-var store = sessions.NewCookieStore([]byte("your-secret-key"))
-var tokenResponse tokenResponseData
-
 type frontData struct {
 	SessionState string
 	Token        map[string]interface{}
+	Services     []string
 }
 
-type tokenResponseData struct {
-	AccessToken  string `json:"access_token"`
-	TokenType    string `json:"token_type"`
-	ExpiresIn    int    `json:"expires_in"`
-	RefreshToken string `json:"refresh_token"`
-	Scope        string `json:"scope"`
-}
+var t = template.Must(template.ParseFiles("src/template/index.html"))
+var tServices = template.Must(template.ParseFiles("src/template/index.html", "src/template/services.html"))
+var store = sessions.NewCookieStore([]byte("your-secret-key"))
+var tokenResponse model.TokenResponseData
 
 func homeHandler(w http.ResponseWriter, r *http.Request) {
 	session, _ := store.Get(r, "session-name")
@@ -98,6 +96,49 @@ func authCodeRedirectHandler(w http.ResponseWriter, r *http.Request, appVar *con
 	}
 
 	http.Redirect(w, r, "/", http.StatusSeeOther)
+}
+
+func servicesHandler(w http.ResponseWriter, r *http.Request, appVar *config) {
+	req, err := http.NewRequest("GET", appVar.ServicesURL, nil)
+	if err != nil {
+		log.Println("Error creating a new HTTP request:", err)
+		return
+	}
+
+	ctx, cancelFunc := context.WithTimeout(context.Background(), 500*time.Millisecond)
+	defer cancelFunc()
+
+	c := http.Client{}
+	res, err := c.Do(req.WithContext(ctx))
+	if err != nil {
+		log.Println("Error sending HTTP request:", err)
+		return
+	}
+
+	byteBody, err := io.ReadAll(res.Body)
+	if err != nil {
+		log.Println("Error reading response body:", err)
+		return
+	}
+
+	billingResponse := &model.Billing{}
+	err = json.Unmarshal(byteBody, billingResponse)
+	if err != nil {
+		log.Println("Error unmarshalling JSON response:", err)
+		return
+	}
+
+	session, _ := store.Get(r, "session-name")
+	data := frontData{
+		SessionState: getSessionValue(session, SessionStateKey),
+		Token:        tokenResponseToMap(tokenResponse),
+		Services:     billingResponse.Services,
+	}
+
+	err = tServices.Execute(w, data)
+	if err != nil {
+		log.Println("Template execution error:", err)
+	}
 }
 
 func exchangeAuthCodeForToken(authCode string, appVar *config) (string, error) {
@@ -175,7 +216,7 @@ func getSessionValue(session *sessions.Session, key string) string {
 	return ""
 }
 
-func tokenResponseToMap(response tokenResponseData) map[string]interface{} {
+func tokenResponseToMap(response model.TokenResponseData) map[string]interface{} {
 	data := make(map[string]interface{})
 	data["AccessToken"] = response.AccessToken
 	data["TokenType"] = response.TokenType

@@ -27,14 +27,20 @@
     </div>
 </nav>
 
-<div class="container mt-4">
-    <div class="d-flex justify-content-center align-items-center mb-4">
-        {{if .SessionState}}
-        <img class="w-25" src="../src/img/lock-open.svg" alt="Open Lock Icon">
-        {{else}}
-        <img class="w-25" src="../src/img/lock-closed.svg" alt="Closed Lock Icon">
-        {{end}}
-    </div>
+<div class="jumbotron text-center">
+    {{if .SessionState}}
+    <img class="p-3" style="width:18%!important" src="../src/img/lock-open.svg" alt="Open Lock Icon">
+    {{else}}
+    <img class="p-3" style="width:18%!important" src="../src/img/lock-closed.svg" alt="Closed Lock Icon">
+    {{end}}
+
+    <h1 class="display-4">Welcome to the Auth App</h1>
+    <p class="lead">Secure your resources with our authentication solution.</p>
+
+    {{if .SessionState}}
+    <a href="/services" class="btn btn-primary btn-lg mt-4">Get protected resource</a>
+    {{end}}
+</div>
 
 <div class="container mt-4">
     {{if .SessionState}}
@@ -44,12 +50,14 @@
                 <div class="card-header">
                     Token Details
                 </div>
+                {{if .Token.AccessToken}}
                 <div class="card-body overflow-auto">
                     {{range $field, $value := .Token}}
                     <h6 class="card-subtitle mb-2 text-muted">{{$field}}</h6>
                     <p class="card-text">{{$value}}</p>
                     {{end}}
                 </div>
+                {{end}}
             </div>
         </div>
         <div class="col-md-6 mb-4">
@@ -57,9 +65,8 @@
                 <div class="card-header">
                     Protected resource
                 </div>
-                <div class="card-body overflow-auto">
-                    <p class="card-text"></p>
-                </div>
+                    {{block "services" .Services}}
+                    {{end}}
             </div>
         </div>
     </div>

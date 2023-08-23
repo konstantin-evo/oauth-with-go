@@ -28,6 +28,9 @@ func routes(app *config) *mux.Router {
 	router.HandleFunc("/login", func(w http.ResponseWriter, r *http.Request) {
 		loginHandler(w, r, app)
 	})
+	router.HandleFunc("/services", func(w http.ResponseWriter, r *http.Request) {
+		servicesHandler(w, r, app)
+	})
 	router.HandleFunc("/logout", func(w http.ResponseWriter, r *http.Request) {
 		logoutHandler(w, r, app)
 	})
