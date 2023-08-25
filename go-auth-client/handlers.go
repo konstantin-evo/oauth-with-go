@@ -104,6 +104,10 @@ func servicesHandler(w http.ResponseWriter, r *http.Request, config *HandlerConf
 		return
 	}
 
+	session, _ := config.Store.Get(r, "session-name")
+	accessToken := getSessionValue(session, AccessTokenKey) // Получаем токен из сессии
+	req.Header.Add("Authorization", "Bearer "+accessToken)
+
 	ctx, cancelFunc := context.WithTimeout(context.Background(), 500*time.Millisecond)
 	defer cancelFunc()
 
@@ -120,6 +124,19 @@ func servicesHandler(w http.ResponseWriter, r *http.Request, config *HandlerConf
 	byteBody, err := io.ReadAll(res.Body)
 	if err != nil {
 		log.Println("Error reading response body:", err)
+		return
+	}
+
+	if res.StatusCode != http.StatusOK {
+		errorResponse := &model.BillingError{}
+
+		err = json.Unmarshal(byteBody, errorResponse)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(res.StatusCode) // Устанавливаем код статуса, полученный от protected resource
+		err := json.NewEncoder(w).Encode(errorResponse)
+		if err != nil {
+			log.Println("Error encoding JSON error response:", err)
+		}
 		return
 	}
 

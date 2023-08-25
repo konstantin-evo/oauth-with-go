@@ -35,16 +35,18 @@ func servicesHandler(w http.ResponseWriter, r *http.Request, app *config) {
 		log.Println("Error extracting token:", err)
 		s := &BillingError{Error: err.Error()}
 		encoder := json.NewEncoder(w)
-		encoder.Encode(s)
 		w.Header().Add("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest) // Установите статус код 400
+		encoder.Encode(s)
 		return
 	}
 
 	if !validateToken(token, app) {
 		s := &BillingError{Error: "Invalid token"}
 		encoder := json.NewEncoder(w)
-		encoder.Encode(s)
 		w.Header().Add("Content-Type", "application/json")
+		w.WriteHeader(http.StatusUnauthorized) // Установите статус код 401
+		encoder.Encode(s)
 		return
 	}
 
