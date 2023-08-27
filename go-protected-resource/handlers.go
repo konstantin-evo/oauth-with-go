@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"io"
@@ -8,48 +9,52 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+
+	"learn.oauth.billing/model"
 )
 
+// Billing struct represents the response structure for billing services.
 type Billing struct {
 	Services []string `json:"services"`
 }
 
+// BillingError struct represents an error response.
 type BillingError struct {
 	Error string `json:"error"`
 }
 
-type TokenIntrospect struct {
-	Exp    int    `json:"exp"`
-	Nbf    int    `json:"nbf"`
-	Iat    int    `json:"iat"`
-	Jti    string `json:"jti"`
-	Aud    string `json:"aud"`
-	Typ    string `json:"typ"`
-	Acr    string `json:"acr"`
-	Active bool   `json:"active"`
-}
-
+// servicesHandler handles the request to retrieve billing services.
 func servicesHandler(w http.ResponseWriter, r *http.Request, app *config) {
 	token, err := extractToken(r)
 	if err != nil {
-		log.Println("Error extracting token:", err)
-		s := &BillingError{Error: err.Error()}
-		encoder := json.NewEncoder(w)
-		w.Header().Add("Content-Type", "application/json")
-		w.WriteHeader(http.StatusBadRequest) // Установите статус код 400
-		encoder.Encode(s)
+		makeErrorMessage(w, err)
 		return
 	}
 
 	if !validateToken(token, app) {
-		s := &BillingError{Error: "Invalid token"}
-		encoder := json.NewEncoder(w)
-		w.Header().Add("Content-Type", "application/json")
-		w.WriteHeader(http.StatusUnauthorized) // Установите статус код 401
-		encoder.Encode(s)
+		makeErrorMessage(w, errors.New("invalid token"))
 		return
 	}
 
+	claimBytes, err := getClaim(token)
+	if err != nil {
+		makeErrorMessage(w, err)
+		return
+	}
+
+	tokenClaim := &model.TokenClaim{}
+	err = json.Unmarshal(claimBytes, tokenClaim)
+	if err != nil {
+		makeErrorMessage(w, err)
+		return
+	}
+
+	if !strings.Contains(tokenClaim.Scope, "getBillingService") {
+		makeErrorMessage(w, errors.New("Invalid scope. Required scope is getBillingService"))
+		return
+	}
+
+	// Prepare the response data
 	s := Billing{
 		Services: []string{
 			"electric",
@@ -59,29 +64,24 @@ func servicesHandler(w http.ResponseWriter, r *http.Request, app *config) {
 		},
 	}
 
+	// Encode and send the response
 	encoder := json.NewEncoder(w)
-	encoder.Encode(s)
 	w.Header().Add("Content-Type", "application/json")
+	encoder.Encode(s)
 }
 
+// extractToken extracts the access token from various sources
 func extractToken(r *http.Request) (string, error) {
-	// Try to extract token from Authorization header
 	authHeader := r.Header.Get("Authorization")
-	if authHeader != "" {
-		// Check if the Authorization header starts with "Bearer "
-		if strings.HasPrefix(authHeader, "Bearer ") {
-			return strings.TrimPrefix(authHeader, "Bearer "), nil
-		}
-		return authHeader, nil
+	if authHeader != "" && strings.HasPrefix(authHeader, "Bearer ") {
+		return strings.TrimPrefix(authHeader, "Bearer "), nil
 	}
 
-	// Try to extract token from form data
 	formToken := r.FormValue("access_token")
 	if formToken != "" {
 		return formToken, nil
 	}
 
-	// Try to extract token from query parameters
 	queryToken := r.URL.Query().Get("access_token")
 	if queryToken != "" {
 		return queryToken, nil
@@ -90,8 +90,8 @@ func extractToken(r *http.Request) (string, error) {
 	return "", errors.New("token not found")
 }
 
+// validateToken sends an introspection request to validate the token.
 func validateToken(token string, app *config) bool {
-
 	form := url.Values{}
 	form.Add("token", token)
 	form.Add("token_type_hint", "requesting_party_token")
@@ -126,7 +126,7 @@ func validateToken(token string, app *config) bool {
 		return false
 	}
 
-	tokenIntrospect := &TokenIntrospect{}
+	tokenIntrospect := &model.TokenIntrospect{}
 	err = json.Unmarshal(byteBody, tokenIntrospect)
 	if err != nil {
 		log.Println("Error unmarshalling JSON response:", err)
@@ -134,4 +134,25 @@ func validateToken(token string, app *config) bool {
 	}
 
 	return tokenIntrospect.Active
+}
+
+// getClaim decodes the JWT and returns its claims.
+func getClaim(token string) ([]byte, error) {
+	tokenParts := strings.Split(token, ".")
+	claim, err := base64.RawURLEncoding.DecodeString(tokenParts[1])
+	if err != nil {
+		log.Println("Error decoding JWT:", err)
+		return []byte{}, err
+	}
+	return claim, nil
+}
+
+// makeErrorMessage creates and sends an error response.
+func makeErrorMessage(w http.ResponseWriter, err error) {
+	log.Println(err)
+	s := &BillingError{Error: err.Error()}
+	encoder := json.NewEncoder(w)
+	w.Header().Add("Content-Type", "application/json")
+	w.WriteHeader(http.StatusBadRequest)
+	encoder.Encode(s)
 }
