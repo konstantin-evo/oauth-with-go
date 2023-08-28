@@ -14,8 +14,15 @@ services:
     build:
       context: ./go-auth-client
       dockerfile: Dockerfile
-    container_name: go-app
+    container_name: go-client
     ports:
       - "8080:8080"
     depends_on:
       - keycloak-auth-server
+  go-protected-resource:
+    build:
+      context: ./go-protected-resource
+      dockerfile: Dockerfile
+    container_name: go-resource
+    ports:
+      - "8082:8080"

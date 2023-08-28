@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"github.com/gorilla/sessions"
@@ -10,6 +11,9 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"time"
+
+	"learn.oauth.client/model"
 )
 
 const (
@@ -18,49 +22,35 @@ const (
 	AccessTokenKey  = "AccessToken"
 )
 
-var t = template.Must(template.ParseFiles("template/index.html"))
-var store = sessions.NewCookieStore([]byte("your-secret-key"))
-
-type authSession struct {
-	AuthCode     string
-	AccessToken  string
-	SessionState string
+type HandlerConfig struct {
+	AppVar   *config
+	Store    *sessions.CookieStore
+	Template *template.Template
 }
 
-type tokenResponseData struct {
-	AccessToken  string `json:"access_token"`
-	TokenType    string `json:"token_type"`
-	ExpiresIn    int    `json:"expires_in"`
-	RefreshToken string `json:"refresh_token"`
-	Scope        string `json:"scope"`
-}
+var tokenResponse model.TokenResponseData
 
-func homeHandler(w http.ResponseWriter, r *http.Request) {
-	session, _ := store.Get(r, "session-name")
+func homeHandler(w http.ResponseWriter, r *http.Request, config *HandlerConfig) {
+	session, _ := config.Store.Get(r, "session-name")
 
-	authCode := getSessionValue(session, AuthCodeKey)
-	sessionState := getSessionValue(session, SessionStateKey)
-	accessToken := getSessionValue(session, AccessTokenKey)
-
-	data := authSession{
-		AuthCode:     authCode,
-		AccessToken:  accessToken,
-		SessionState: sessionState,
+	data := model.FrontData{
+		SessionState: getSessionValue(session, SessionStateKey),
+		Token:        tokenResponseToMap(tokenResponse),
 	}
 
-	err := t.Execute(w, data)
+	err := config.Template.Execute(w, data)
 	if err != nil {
 		log.Println("Template execution error:", err)
 	}
 }
 
-func loginHandler(w http.ResponseWriter, r *http.Request, appVar *config) {
-	redirectURL := buildAuthURL(appVar)
+func loginHandler(w http.ResponseWriter, r *http.Request, config *HandlerConfig) {
+	redirectURL := buildAuthURL(config.AppVar)
 	http.Redirect(w, r, redirectURL, http.StatusFound)
 }
 
-func logoutHandler(w http.ResponseWriter, r *http.Request, appVar *config) {
-	session, _ := store.Get(r, "session-name")
+func logoutHandler(w http.ResponseWriter, r *http.Request, config *HandlerConfig) {
+	session, _ := config.Store.Get(r, "session-name")
 
 	delete(session.Values, AuthCodeKey)
 	delete(session.Values, SessionStateKey)
@@ -70,38 +60,30 @@ func logoutHandler(w http.ResponseWriter, r *http.Request, appVar *config) {
 		log.Println("Error saving session:", err)
 	}
 
-	redirectURL := buildLogoutURL(appVar)
+	redirectURL := buildLogoutURL(config.AppVar)
 	http.Redirect(w, r, redirectURL, http.StatusFound)
 }
 
-func authCodeRedirectHandler(w http.ResponseWriter, r *http.Request) {
-	session, _ := store.Get(r, "session-name")
+func authCodeRedirectHandler(w http.ResponseWriter, r *http.Request, config *HandlerConfig) {
+	session, _ := config.Store.Get(r, "session-name")
 
-	session.Values[AuthCodeKey] = r.URL.Query().Get("code")
-	session.Values[SessionStateKey] = r.URL.Query().Get("session_state")
+	authCode := r.URL.Query().Get("code")
+	sessionState := r.URL.Query().Get("session_state")
+
+	// Save auth code and session state in the session
+	session.Values[AuthCodeKey] = authCode
+	session.Values[SessionStateKey] = sessionState
 	session.Save(r, w)
 
-	r.URL.RawQuery = ""
-	log.Printf("Request queries: %+v", session.Values)
-	http.Redirect(w, r, "/", http.StatusSeeOther)
-}
-
-func tokenHandler(w http.ResponseWriter, r *http.Request, appVar *config) {
-	session, _ := store.Get(r, "session-name")
-	authCode := getSessionValue(session, AuthCodeKey)
-
-	if authCode == "" {
-		http.Error(w, "Authorization code not found", http.StatusBadRequest)
-		return
-	}
-
-	token, err := exchangeAuthCodeForToken(authCode, appVar)
+	// Exchange auth code for token
+	token, err := exchangeAuthCodeForToken(authCode, config.AppVar)
 	if err != nil {
 		log.Println("Error exchanging auth code for token:", err)
 		http.Error(w, "Failed to exchange authorization code for token", http.StatusInternalServerError)
 		return
 	}
 
+	// Save token in the session
 	session.Values[AccessTokenKey] = token
 	err = session.Save(r, w)
 	if err != nil {
@@ -110,17 +92,80 @@ func tokenHandler(w http.ResponseWriter, r *http.Request, appVar *config) {
 		return
 	}
 
-	delete(session.Values, AuthCodeKey)
-	session.Save(r, w)
-
 	http.Redirect(w, r, "/", http.StatusSeeOther)
+}
+
+func servicesHandler(w http.ResponseWriter, r *http.Request, config *HandlerConfig) {
+	// Create a request to the protected resource endpoint
+	req, err := http.NewRequest("GET", config.AppVar.ServicesURL, nil)
+	if err != nil {
+		log.Println("Error creating a new HTTP request:", err)
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		return
+	}
+
+	session, _ := config.Store.Get(r, "session-name")
+	accessToken := getSessionValue(session, AccessTokenKey) // Получаем токен из сессии
+	req.Header.Add("Authorization", "Bearer "+accessToken)
+
+	ctx, cancelFunc := context.WithTimeout(context.Background(), 500*time.Millisecond)
+	defer cancelFunc()
+
+	// Send the request and handle the response
+	c := &http.Client{}
+	res, err := c.Do(req.WithContext(ctx))
+	if err != nil {
+		log.Println("Error sending HTTP request:", err)
+		return
+	}
+	defer res.Body.Close()
+
+	// Read and parse the response
+	byteBody, err := io.ReadAll(res.Body)
+	if err != nil {
+		log.Println("Error reading response body:", err)
+		return
+	}
+
+	if res.StatusCode != http.StatusOK {
+		errorResponse := &model.BillingError{}
+
+		err = json.Unmarshal(byteBody, errorResponse)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(res.StatusCode) // Устанавливаем код статуса, полученный от protected resource
+		err := json.NewEncoder(w).Encode(errorResponse)
+		if err != nil {
+			log.Println("Error encoding JSON error response:", err)
+		}
+		return
+	}
+
+	billingResponse := &model.Billing{}
+	err = json.Unmarshal(byteBody, billingResponse)
+	if err != nil {
+		log.Println("Error unmarshalling JSON response:", err)
+		return
+	}
+
+	// Prepare the JSON response with only the services
+	jsonResponse := map[string]interface{}{
+		"services": billingResponse.Services,
+	}
+
+	// Marshal the JSON and send the response
+	w.Header().Set("Content-Type", "application/json")
+	err = json.NewEncoder(w).Encode(jsonResponse)
+	if err != nil {
+		log.Println("Error encoding JSON response:", err)
+		return
+	}
 }
 
 func exchangeAuthCodeForToken(authCode string, appVar *config) (string, error) {
 	data := url.Values{}
 	data.Set("grant_type", "authorization_code")
 	data.Set("client_id", appVar.AppID)
-	data.Set("client_secret", "oRVEzP9Co9NOVLnn8hoQ7ENdVeAM1A4X")
+	data.Set("client_secret", "1ANIYGdYJhdeMjXOn6qrSmMU9wiUkXQ2")
 	data.Set("code", authCode)
 	data.Set("redirect_uri", appVar.AuthCodeCallback)
 
@@ -143,8 +188,6 @@ func exchangeAuthCodeForToken(authCode string, appVar *config) (string, error) {
 		resp.Body.Close()
 		return "", fmt.Errorf("token request returned status code %d. Response body: %s", resp.StatusCode, responseBody)
 	}
-
-	var tokenResponse tokenResponseData
 
 	err = json.NewDecoder(resp.Body).Decode(&tokenResponse)
 	if err != nil {
@@ -191,4 +234,14 @@ func getSessionValue(session *sessions.Session, key string) string {
 		return value.(string)
 	}
 	return ""
+}
+
+func tokenResponseToMap(response model.TokenResponseData) map[string]interface{} {
+	data := make(map[string]interface{})
+	data["AccessToken"] = response.AccessToken
+	data["TokenType"] = response.TokenType
+	data["ExpiresIn"] = response.ExpiresIn
+	data["RefreshToken"] = response.RefreshToken
+	data["Scope"] = response.Scope
+	return data
 }
