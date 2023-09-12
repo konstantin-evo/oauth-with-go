@@ -4,7 +4,6 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
-	"io"
 	"log"
 	"net/http"
 	"net/url"
@@ -49,8 +48,13 @@ func servicesHandler(w http.ResponseWriter, r *http.Request, app *config) {
 		return
 	}
 
+	if !isValidAudience(tokenClaim.Aud) {
+		makeErrorMessage(w, errors.New("invalid audience"))
+		return
+	}
+
 	if !strings.Contains(tokenClaim.Scope, "getBillingService") {
-		makeErrorMessage(w, errors.New("Invalid scope. Required scope is getBillingService"))
+		makeErrorMessage(w, errors.New("invalid scope. Required scope is getBillingService"))
 		return
 	}
 
@@ -120,20 +124,52 @@ func validateToken(token string, app *config) bool {
 	}
 
 	// Read and parse the response
-	byteBody, err := io.ReadAll(res.Body)
-	if err != nil {
-		log.Println("Error reading response body:", err)
+	var tokenIntrospect model.TokenIntrospect
+	decoder := json.NewDecoder(res.Body)
+	if err := decoder.Decode(&tokenIntrospect); err != nil {
+		log.Println("Error decoding JSON response:", err)
 		return false
 	}
 
-	tokenIntrospect := &model.TokenIntrospect{}
-	err = json.Unmarshal(byteBody, tokenIntrospect)
-	if err != nil {
-		log.Println("Error unmarshalling JSON response:", err)
+	// Check the type of Aud and handle it accordingly
+	switch aud := tokenIntrospect.Aud.(type) {
+	case string:
+		// If Aud is a string, convert it to a single-element slice
+		tokenIntrospect.Aud = []string{aud}
+	case []interface{}:
+		// If Aud is an array, convert it to a slice of strings
+		audStrings := make([]string, len(aud))
+		for i, v := range aud {
+			if s, ok := v.(string); ok {
+				audStrings[i] = s
+			} else {
+				log.Println("Error converting aud value to string:", v)
+				return false
+			}
+		}
+		tokenIntrospect.Aud = audStrings
+	default:
+		log.Println("Unexpected type for aud:", aud)
 		return false
 	}
 
 	return tokenIntrospect.Active
+}
+
+// isValidAudience checks if the 'aud' field in the token claim is valid.
+func isValidAudience(aud interface{}) bool {
+	switch aud.(type) {
+	case string:
+		return aud.(string) == "http://localhost:8080/"
+	case []interface{}:
+		audiences := aud.([]interface{})
+		for _, a := range audiences {
+			if a == "http://localhost:8080/" {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // getClaim decodes the JWT and returns its claims.

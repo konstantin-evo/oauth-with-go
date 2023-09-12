@@ -40,6 +40,7 @@ func main() {
 		Handler: routes(handlerConfig),
 	}
 
+	log.Printf("Server listening on port %s\n", app.WebPort)
 	if err := server.ListenAndServe(); err != nil {
 		log.Println(err)
 	}

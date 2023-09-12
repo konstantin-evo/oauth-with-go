@@ -1,2 +1,4 @@
 /.idea/
+/go-protected-resource/.idea/
+/go-auth-client/.idea/
 .DS_Store
