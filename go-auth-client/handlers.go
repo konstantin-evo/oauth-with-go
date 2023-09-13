@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/dgrijalva/jwt-go"
 	"github.com/gorilla/sessions"
 	"html/template"
 	"io"
@@ -33,12 +34,23 @@ var tokenResponse model.TokenResponseData
 func homeHandler(w http.ResponseWriter, r *http.Request, config *HandlerConfig) {
 	session, _ := config.Store.Get(r, "session-name")
 
+	// Get access token from session
+	accessToken := getSessionValue(session, AccessTokenKey)
+
+	// Decode access token (JWT)
+	decodedToken, err := decodeAccessToken(accessToken)
+	if err != nil {
+		log.Println("Error decoding access token:", err)
+		// Можно обработать ошибку и отправить сообщение об ошибке на фронт
+	}
+
 	data := model.FrontData{
 		SessionState: getSessionValue(session, SessionStateKey),
 		Token:        tokenResponseToMap(tokenResponse),
+		DecodedToken: decodedToken,
 	}
 
-	err := config.Template.Execute(w, data)
+	err = config.Template.Execute(w, data)
 	if err != nil {
 		log.Println("Template execution error:", err)
 	}
@@ -244,4 +256,17 @@ func tokenResponseToMap(response model.TokenResponseData) map[string]interface{}
 	data["RefreshToken"] = response.RefreshToken
 	data["Scope"] = response.Scope
 	return data
+}
+
+func decodeAccessToken(accessToken string) (map[string]interface{}, error) {
+	token, _, err := new(jwt.Parser).ParseUnverified(accessToken, jwt.MapClaims{})
+	if err != nil {
+		return nil, err
+	}
+
+	if claims, ok := token.Claims.(jwt.MapClaims); ok {
+		return claims, nil
+	}
+
+	return nil, fmt.Errorf("invalid token")
 }

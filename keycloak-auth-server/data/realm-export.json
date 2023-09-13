@@ -599,8 +599,8 @@
         "jsonType.label" : "String"
       }
     } ],
-    "defaultClientScopes" : [ "web-origins", "acr", "getBillingService", "profile", "roles", "email" ],
-    "optionalClientScopes" : [ "address", "phone", "offline_access", "microprofile-jwt" ]
+    "defaultClientScopes" : [ "web-origins", "acr", "getBillingService", "roles", "email" ],
+    "optionalClientScopes" : [ "address", "phone", "profile", "offline_access", "microprofile-jwt" ]
   }, {
     "id" : "f9607574-6e2c-4ba2-b421-0e66cb777d06",
     "clientId" : "broker",

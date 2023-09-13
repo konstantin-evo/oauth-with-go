@@ -45,7 +45,7 @@
 <div class="container mt-4">
     {{if .SessionState}}
     <div class="row">
-        <div class="col-md-6 mb-4">
+        <div class="col-md-4 mb-4">
             <div class="card h-100">
                 <div class="card-header">
                     Token Details
@@ -60,7 +60,22 @@
                 {{end}}
             </div>
         </div>
-        <div class="col-md-6 mb-4">
+        <div class="col-md-4 mb-4">
+            <div class="card h-100">
+                <div class="card-header">
+                    Decoded Access Token
+                </div>
+                {{if .Token.AccessToken}}
+                <div id="decoded-token-details" class="card-body">
+                    {{range $field, $value := .DecodedToken}}
+                    <h6 class="card-subtitle mb-2 text-muted">{{$field}}</h6>
+                    <p class="card-text">{{$value}}</p>
+                    {{end}}
+                </div>
+                {{end}}
+            </div>
+        </div>
+        <div class="col-md-4 mb-4">
             <div class="card h-100">
                 <div class="card-header">
                     Protected resource
