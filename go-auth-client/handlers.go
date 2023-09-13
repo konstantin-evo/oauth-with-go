@@ -18,9 +18,8 @@ import (
 )
 
 const (
-	AuthCodeKey     = "AuthCode"
-	SessionStateKey = "SessionState"
-	AccessTokenKey  = "AccessToken"
+	SessionStateKey  = "SessionState"
+	TokenResponseKey = "TokenResponse"
 )
 
 type HandlerConfig struct {
@@ -29,24 +28,28 @@ type HandlerConfig struct {
 	Template *template.Template
 }
 
-var tokenResponse model.TokenResponseData
-
 func homeHandler(w http.ResponseWriter, r *http.Request, config *HandlerConfig) {
+	// Retrieve SessionState and token response from the session
+	// to display on front-end
 	session, _ := config.Store.Get(r, "session-name")
-
-	// Get access token from session
-	accessToken := getSessionValue(session, AccessTokenKey)
+	sessionState := getSessionValue(session, SessionStateKey)
+	tokenResponse, err := getTokenResponseFromSession(session)
+	if err != nil {
+		// Create an empty token response object to avoid nil
+		log.Println("Error decoding token response:", err)
+		tokenResponse = &model.TokenResponseData{}
+	}
 
 	// Decode access token (JWT)
-	decodedToken, err := decodeAccessToken(accessToken)
+	decodedToken, err := decodeAccessToken(tokenResponse.AccessToken)
 	if err != nil {
 		log.Println("Error decoding access token:", err)
-		// Можно обработать ошибку и отправить сообщение об ошибке на фронт
+		// Handle the error and send an error message to the front-end
 	}
 
 	data := model.FrontData{
-		SessionState: getSessionValue(session, SessionStateKey),
-		Token:        tokenResponseToMap(tokenResponse),
+		SessionState: sessionState,
+		Token:        tokenResponseToMap(*tokenResponse),
 		DecodedToken: decodedToken,
 	}
 
@@ -63,9 +66,8 @@ func loginHandler(w http.ResponseWriter, r *http.Request, config *HandlerConfig)
 
 func logoutHandler(w http.ResponseWriter, r *http.Request, config *HandlerConfig) {
 	session, _ := config.Store.Get(r, "session-name")
-
-	delete(session.Values, AuthCodeKey)
 	delete(session.Values, SessionStateKey)
+	delete(session.Values, TokenResponseKey)
 
 	err := session.Save(r, w)
 	if err != nil {
@@ -77,31 +79,24 @@ func logoutHandler(w http.ResponseWriter, r *http.Request, config *HandlerConfig
 }
 
 func authCodeRedirectHandler(w http.ResponseWriter, r *http.Request, config *HandlerConfig) {
-	session, _ := config.Store.Get(r, "session-name")
-
 	authCode := r.URL.Query().Get("code")
 	sessionState := r.URL.Query().Get("session_state")
 
-	// Save auth code and session state in the session
-	session.Values[AuthCodeKey] = authCode
-	session.Values[SessionStateKey] = sessionState
-	session.Save(r, w)
-
 	// Exchange auth code for token
-	token, err := exchangeAuthCodeForToken(authCode, config.AppVar)
+	tokenBytes, err := exchangeAuthCodeForToken(authCode, config.AppVar)
 	if err != nil {
 		log.Println("Error exchanging auth code for token:", err)
 		http.Error(w, "Failed to exchange authorization code for token", http.StatusInternalServerError)
 		return
 	}
 
-	// Save token in the session
-	session.Values[AccessTokenKey] = token
+	// Save token bytes and session state in the session
+	session, _ := config.Store.Get(r, "session-name")
+	session.Values[SessionStateKey] = sessionState
+	session.Values[TokenResponseKey] = tokenBytes
 	err = session.Save(r, w)
 	if err != nil {
 		log.Println("Error saving session:", err)
-		http.Error(w, "Failed to save session", http.StatusInternalServerError)
-		return
 	}
 
 	http.Redirect(w, r, "/", http.StatusSeeOther)
@@ -117,8 +112,13 @@ func servicesHandler(w http.ResponseWriter, r *http.Request, config *HandlerConf
 	}
 
 	session, _ := config.Store.Get(r, "session-name")
-	accessToken := getSessionValue(session, AccessTokenKey) // Получаем токен из сессии
-	req.Header.Add("Authorization", "Bearer "+accessToken)
+	tokenResponse, err := getTokenResponseFromSession(session)
+	if err != nil {
+		log.Println("Error decoding token response:", err)
+		return
+	}
+
+	req.Header.Add("Authorization", "Bearer "+tokenResponse.AccessToken)
 
 	ctx, cancelFunc := context.WithTimeout(context.Background(), 500*time.Millisecond)
 	defer cancelFunc()
@@ -130,7 +130,13 @@ func servicesHandler(w http.ResponseWriter, r *http.Request, config *HandlerConf
 		log.Println("Error sending HTTP request:", err)
 		return
 	}
-	defer res.Body.Close()
+
+	defer func(Body io.ReadCloser) {
+		err := Body.Close()
+		if err != nil {
+			log.Printf("Error closing response body: %v", err)
+		}
+	}(res.Body)
 
 	// Read and parse the response
 	byteBody, err := io.ReadAll(res.Body)
@@ -144,7 +150,7 @@ func servicesHandler(w http.ResponseWriter, r *http.Request, config *HandlerConf
 
 		err = json.Unmarshal(byteBody, errorResponse)
 		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(res.StatusCode) // Устанавливаем код статуса, полученный от protected resource
+		w.WriteHeader(res.StatusCode)
 		err := json.NewEncoder(w).Encode(errorResponse)
 		if err != nil {
 			log.Println("Error encoding JSON error response:", err)
@@ -173,7 +179,7 @@ func servicesHandler(w http.ResponseWriter, r *http.Request, config *HandlerConf
 	}
 }
 
-func exchangeAuthCodeForToken(authCode string, appVar *config) (string, error) {
+func exchangeAuthCodeForToken(authCode string, appVar *config) ([]byte, error) {
 	data := url.Values{}
 	data.Set("grant_type", "authorization_code")
 	data.Set("client_id", appVar.AppID)
@@ -183,7 +189,7 @@ func exchangeAuthCodeForToken(authCode string, appVar *config) (string, error) {
 
 	req, err := http.NewRequest("POST", appVar.TokenURL, bytes.NewBufferString(data.Encode()))
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
@@ -191,22 +197,34 @@ func exchangeAuthCodeForToken(authCode string, appVar *config) (string, error) {
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-	defer resp.Body.Close()
+
+	defer func(Body io.ReadCloser) {
+		err := Body.Close()
+		if err != nil {
+			log.Printf("Error closing response body: %v", err)
+		}
+	}(resp.Body)
 
 	if resp.StatusCode != http.StatusOK {
 		responseBody, _ := io.ReadAll(resp.Body)
-		resp.Body.Close()
-		return "", fmt.Errorf("token request returned status code %d. Response body: %s", resp.StatusCode, responseBody)
+		err := resp.Body.Close()
+		if err != nil {
+			log.Printf("Error closing response body: %v", err)
+			return nil, err
+		}
+
+		return nil, fmt.Errorf("token request returned status code %d. Response body: %s", resp.StatusCode, responseBody)
 	}
 
-	err = json.NewDecoder(resp.Body).Decode(&tokenResponse)
+	// Read the response body into a byte slice
+	tokenResponse, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
-	return tokenResponse.AccessToken, nil
+	return tokenResponse, nil
 }
 
 func buildAuthURL(appVar *config) string {
@@ -243,7 +261,11 @@ func buildLogoutURL(appVar *config) string {
 func getSessionValue(session *sessions.Session, key string) string {
 	value := session.Values[key]
 	if value != nil {
-		return value.(string)
+		if strValue, ok := value.(string); ok {
+			return strValue // Value is a string, return it as is
+		} else if byteSliceValue, ok := value.([]uint8); ok {
+			return string(byteSliceValue) // Convert byte slice to string
+		}
 	}
 	return ""
 }
@@ -269,4 +291,22 @@ func decodeAccessToken(accessToken string) (map[string]interface{}, error) {
 	}
 
 	return nil, fmt.Errorf("invalid token")
+}
+
+func getTokenResponseFromSession(session *sessions.Session) (*model.TokenResponseData, error) {
+	tokenResponseStr := getSessionValue(session, TokenResponseKey)
+
+	if tokenResponseStr == "" {
+		return nil, fmt.Errorf("token response not found in session")
+	}
+
+	tokenResponseBytes := []byte(tokenResponseStr)
+
+	var tokenResponse model.TokenResponseData
+	err := json.Unmarshal(tokenResponseBytes, &tokenResponse)
+	if err != nil {
+		return nil, err
+	}
+
+	return &tokenResponse, nil
 }
