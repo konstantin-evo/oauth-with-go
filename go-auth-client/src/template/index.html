@@ -9,7 +9,7 @@
 </head>
 <body>
 <nav class="navbar navbar-expand-lg navbar-light bg-light">
-    <a class="navbar-brand" href="#">Auth App</a>
+    <a class="navbar-brand" href="#">Refresh Token</a>
     <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav"
             aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
         <span class="navbar-toggler-icon"></span>
@@ -18,6 +18,7 @@
         <ul class="navbar-nav ml-auto">
             <li class="nav-item">
                 {{if .SessionState}}
+                <a href="/refreshToken" class="btn btn-secondary">Refresh token</a>
                 <a href="/logout" class="btn btn-secondary">Logout</a>
                 {{else}}
                 <a href="/login" class="btn btn-secondary">Login</a>
@@ -35,7 +36,7 @@
     {{end}}
 
     <h1 class="display-4">Welcome to the Auth App</h1>
-    <p class="lead">Secure your resources with our authentication solution.</p>
+    <p class="lead">Explore the Keycloak based authentication solution for educational purposes.</p>
 
     {{if .SessionState}}
     <button id="get-protected-resource" class="btn btn-primary btn-lg mt-4">Get protected resource</button>

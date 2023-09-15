@@ -227,6 +227,79 @@ func exchangeAuthCodeForToken(authCode string, appVar *config) ([]byte, error) {
 	return tokenResponse, nil
 }
 
+func refreshTokenHandler(w http.ResponseWriter, r *http.Request, config *HandlerConfig) {
+	// Get the current Refresh Token from the session
+	session, _ := config.Store.Get(r, "session-name")
+	tokenResponse, err := getTokenResponseFromSession(session)
+	if err != nil {
+		log.Println("Error decoding token response:", err)
+		http.Error(w, "Failed to get token response from session", http.StatusInternalServerError)
+		return
+	}
+
+	// Create a POST request to refresh the token
+	data := url.Values{}
+	data.Set("grant_type", "refresh_token")
+	data.Set("client_id", config.AppVar.AppID)
+	data.Set("client_secret", "1ANIYGdYJhdeMjXOn6qrSmMU9wiUkXQ2")
+	data.Set("refresh_token", tokenResponse.RefreshToken)
+
+	req, err := http.NewRequest("POST", config.AppVar.TokenURL, bytes.NewBufferString(data.Encode()))
+	if err != nil {
+		log.Println("Error creating a new HTTP request:", err)
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		return
+	}
+
+	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+
+	// Send the request to refresh the token
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		log.Println("Error sending HTTP request:", err)
+		http.Error(w, "Failed to send token refresh request", http.StatusInternalServerError)
+		return
+	}
+
+	defer func(Body io.ReadCloser) {
+		err := Body.Close()
+		if err != nil {
+			log.Printf("Error closing response body: %v", err)
+		}
+	}(resp.Body)
+
+	if resp.StatusCode != http.StatusOK {
+		responseBody, _ := io.ReadAll(resp.Body)
+		err := resp.Body.Close()
+		if err != nil {
+			log.Printf("Error closing response body: %v", err)
+			http.Error(w, "Token refresh request failed", http.StatusInternalServerError)
+			return
+		}
+
+		http.Error(w, fmt.Sprintf("Token refresh request returned status code %d. Response body: %s", resp.StatusCode, responseBody), resp.StatusCode)
+		return
+	}
+
+	// Read and parse the updated token
+	tokenResponseBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		log.Println("Error reading response body:", err)
+		http.Error(w, "Failed to read token refresh response", http.StatusInternalServerError)
+		return
+	}
+
+	// Save the new token in the session
+	session.Values[TokenResponseKey] = tokenResponseBytes
+	err = session.Save(r, w)
+	if err != nil {
+		log.Println("Error saving session:", err)
+	}
+
+	http.Redirect(w, r, "/", http.StatusSeeOther)
+}
+
 func buildAuthURL(appVar *config) string {
 	u, err := url.Parse(appVar.AuthURL)
 	if err != nil {
