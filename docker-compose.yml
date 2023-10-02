@@ -10,6 +10,7 @@ services:
     environment:
       - KEYCLOAK_ADMIN=admin
       - KEYCLOAK_ADMIN_PASSWORD=admin
+
   go-auth-client:
     build:
       context: ./go-auth-client
@@ -17,8 +18,12 @@ services:
     container_name: go-client
     ports:
       - "8080:8080"
+    environment:
+      DSN: "host=postgres port=5432 user=postgres password=password dbname=oauth sslmode=disable timezone=UTC connect_timeout=5"
     depends_on:
       - keycloak-auth-server
+      - postgres
+
   go-protected-resource:
     build:
       context: ./go-protected-resource
@@ -26,3 +31,14 @@ services:
     container_name: go-resource
     ports:
       - "8082:8080"
+
+  postgres:
+    image: 'postgres:14.2'
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: oauth
+    volumes:
+      - ./src/script/init.sql:/docker-entrypoint-initdb.d/init.sql

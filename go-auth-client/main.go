@@ -1,12 +1,18 @@
 package main
 
 import (
+	"database/sql"
 	"fmt"
 	"github.com/gorilla/sessions"
 	"html/template"
 	"log"
 	"net/http"
 	"os"
+	"time"
+
+	_ "github.com/jackc/pgconn"
+	_ "github.com/jackc/pgx/v4"
+	_ "github.com/jackc/pgx/v4/stdlib"
 )
 
 type config struct {
@@ -18,6 +24,7 @@ type config struct {
 	AuthCodeCallback string
 	ServicesURL      string
 	WebPort          string
+	DSN              string
 }
 
 func main() {
@@ -32,6 +39,11 @@ func main() {
 	handlerConfig, err := loadHandlerConfig(app)
 	if err != nil {
 		log.Panic(err)
+	}
+
+	conn := connectToDB(app)
+	if conn == nil {
+		log.Panic("Can't connect to Postgres!")
 	}
 
 	// Start the HTTP server
@@ -53,6 +65,11 @@ func loadConfig() (*config, error) {
 		port = "8080"
 	}
 
+	dsn := os.Getenv("DSN")
+	if dsn == "" {
+		dsn = "host=localhost port=5432 user=postgres password=password dbname=oauth sslmode=disable timezone=UTC connect_timeout=5"
+	}
+
 	app := config{
 		AppID:            "billingApp",
 		AuthURL:          "http://localhost:8081/realms/customRealm/protocol/openid-connect/auth",
@@ -62,6 +79,7 @@ func loadConfig() (*config, error) {
 		AuthCodeCallback: "http://localhost:8080/authCodeRedirect",
 		ServicesURL:      "http://localhost:8082/billing/v1/services",
 		WebPort:          port,
+		DSN:              dsn,
 	}
 
 	return &app, nil
@@ -69,8 +87,6 @@ func loadConfig() (*config, error) {
 
 func loadHandlerConfig(app *config) (*HandlerConfig, error) {
 	store := sessions.NewCookieStore([]byte("your-secret-key"))
-
-	// Загрузка шаблона из файла
 	t := template.Must(template.ParseFiles("src/template/index.html"))
 
 	return &HandlerConfig{
@@ -78,4 +94,43 @@ func loadHandlerConfig(app *config) (*HandlerConfig, error) {
 		Store:    store,
 		Template: t,
 	}, nil
+}
+
+func connectToDB(app *config) *sql.DB {
+	dsn := app.DSN
+	counts := 0
+
+	for {
+		connection, err := openDB(dsn)
+		if err != nil {
+			log.Printf("Postgres not yet ready (attempt %d): %s", counts+1, err.Error())
+			counts++
+		} else {
+			log.Println("Connected to Postgres!")
+			return connection
+		}
+
+		if counts > 10 {
+			log.Printf("Giving up after %d attempts: %s", counts, err.Error())
+			return nil
+		}
+
+		log.Println("Backing off for two seconds....")
+		time.Sleep(2 * time.Second)
+		continue
+	}
+}
+
+func openDB(dsn string) (*sql.DB, error) {
+	db, err := sql.Open("pgx", dsn)
+	if err != nil {
+		return nil, err
+	}
+
+	err = db.Ping()
+	if err != nil {
+		return nil, err
+	}
+
+	return db, nil
 }
