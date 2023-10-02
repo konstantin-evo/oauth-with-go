@@ -17,7 +17,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 }
                 protectedResourceDetails.appendChild(servicesList);
             } else {
-                const errorData = responseData; // Use the cloned response data
+                const errorData = responseData; // Use the cloned response repository
                 const errorMessage = errorData.error || "An error occurred";
                 protectedResourceDetails.textContent = errorMessage;
             }

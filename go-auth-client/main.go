@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/gorilla/sessions"
 	"html/template"
+	repository2 "learn.oauth.client/data/repository"
 	"log"
 	"net/http"
 	"os"
@@ -24,7 +25,7 @@ type config struct {
 	AuthCodeCallback string
 	ServicesURL      string
 	WebPort          string
-	DSN              string
+	Repo             repository2.Repository
 }
 
 func main() {
@@ -39,11 +40,6 @@ func main() {
 	handlerConfig, err := loadHandlerConfig(app)
 	if err != nil {
 		log.Panic(err)
-	}
-
-	conn := connectToDB(app)
-	if conn == nil {
-		log.Panic("Can't connect to Postgres!")
 	}
 
 	// Start the HTTP server
@@ -70,6 +66,11 @@ func loadConfig() (*config, error) {
 		dsn = "host=localhost port=5432 user=postgres password=password dbname=oauth sslmode=disable timezone=UTC connect_timeout=5"
 	}
 
+	conn := connectToDB(dsn)
+	if conn == nil {
+		log.Panic("Can't connect to Postgres!")
+	}
+
 	app := config{
 		AppID:            "billingApp",
 		AuthURL:          "http://localhost:8081/realms/customRealm/protocol/openid-connect/auth",
@@ -79,7 +80,7 @@ func loadConfig() (*config, error) {
 		AuthCodeCallback: "http://localhost:8080/authCodeRedirect",
 		ServicesURL:      "http://localhost:8082/billing/v1/services",
 		WebPort:          port,
-		DSN:              dsn,
+		Repo:             repository2.NewPostgresRepository(conn),
 	}
 
 	return &app, nil
@@ -96,8 +97,7 @@ func loadHandlerConfig(app *config) (*HandlerConfig, error) {
 	}, nil
 }
 
-func connectToDB(app *config) *sql.DB {
-	dsn := app.DSN
+func connectToDB(dsn string) *sql.DB {
 	counts := 0
 
 	for {

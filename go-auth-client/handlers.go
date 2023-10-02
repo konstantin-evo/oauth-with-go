@@ -9,12 +9,11 @@ import (
 	"github.com/gorilla/sessions"
 	"html/template"
 	"io"
+	model2 "learn.oauth.client/data/model"
 	"log"
 	"net/http"
 	"net/url"
 	"time"
-
-	"learn.oauth.client/model"
 )
 
 const (
@@ -37,7 +36,7 @@ func homeHandler(w http.ResponseWriter, r *http.Request, config *HandlerConfig) 
 	if err != nil {
 		// Create an empty token response object to avoid nil
 		log.Println("Error decoding token response:", err)
-		tokenResponse = &model.TokenResponseData{}
+		tokenResponse = &model2.TokenResponseData{}
 	}
 
 	// Decode access token (JWT)
@@ -47,7 +46,7 @@ func homeHandler(w http.ResponseWriter, r *http.Request, config *HandlerConfig) 
 		// Handle the error and send an error message to the front-end
 	}
 
-	data := model.FrontData{
+	data := model2.FrontData{
 		SessionState: sessionState,
 		Token:        tokenResponseToMap(*tokenResponse),
 		DecodedToken: decodedToken,
@@ -90,6 +89,24 @@ func authCodeRedirectHandler(w http.ResponseWriter, r *http.Request, config *Han
 		return
 	}
 
+	// Save token to DB
+	var tokenResponse model2.TokenResponseData
+	err = json.Unmarshal(tokenBytes, &tokenResponse)
+	if err != nil {
+		log.Println("Error decoding token response:", err)
+		http.Error(w, "Failed to decode token response", http.StatusInternalServerError)
+		return
+	}
+
+	_, err = config.AppVar.Repo.Insert(tokenResponse)
+	if err != nil {
+		log.Println("Error saving token to the database:", err)
+		http.Error(w, "Failed to save token to the database", http.StatusInternalServerError)
+		return
+	}
+
+	// TODO: Delete saving token to the session when
+	// TODO: Backend For Frontend Authentication Pattern will be implemented
 	// Save token bytes and session state in the session
 	session, _ := config.Store.Get(r, "session-name")
 	session.Values[SessionStateKey] = sessionState
@@ -146,7 +163,7 @@ func servicesHandler(w http.ResponseWriter, r *http.Request, config *HandlerConf
 	}
 
 	if res.StatusCode != http.StatusOK {
-		errorResponse := &model.BillingError{}
+		errorResponse := &model2.BillingError{}
 
 		err = json.Unmarshal(byteBody, errorResponse)
 		w.Header().Set("Content-Type", "application/json")
@@ -158,7 +175,7 @@ func servicesHandler(w http.ResponseWriter, r *http.Request, config *HandlerConf
 		return
 	}
 
-	billingResponse := &model.Billing{}
+	billingResponse := &model2.Billing{}
 	err = json.Unmarshal(byteBody, billingResponse)
 	if err != nil {
 		log.Println("Error unmarshalling JSON response:", err)
@@ -343,7 +360,7 @@ func getSessionValue(session *sessions.Session, key string) string {
 	return ""
 }
 
-func tokenResponseToMap(response model.TokenResponseData) map[string]interface{} {
+func tokenResponseToMap(response model2.TokenResponseData) map[string]interface{} {
 	data := make(map[string]interface{})
 	data["AccessToken"] = response.AccessToken
 	data["TokenType"] = response.TokenType
@@ -366,7 +383,7 @@ func decodeAccessToken(accessToken string) (map[string]interface{}, error) {
 	return nil, fmt.Errorf("invalid token")
 }
 
-func getTokenResponseFromSession(session *sessions.Session) (*model.TokenResponseData, error) {
+func getTokenResponseFromSession(session *sessions.Session) (*model2.TokenResponseData, error) {
 	tokenResponseStr := getSessionValue(session, TokenResponseKey)
 
 	if tokenResponseStr == "" {
@@ -375,7 +392,7 @@ func getTokenResponseFromSession(session *sessions.Session) (*model.TokenRespons
 
 	tokenResponseBytes := []byte(tokenResponseStr)
 
-	var tokenResponse model.TokenResponseData
+	var tokenResponse model2.TokenResponseData
 	err := json.Unmarshal(tokenResponseBytes, &tokenResponse)
 	if err != nil {
 		return nil, err
