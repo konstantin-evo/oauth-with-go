@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"github.com/gorilla/sessions"
 	"html/template"
-	repository2 "learn.oauth.client/data/repository"
+	"learn.oauth.client/data/repository"
 	"log"
 	"net/http"
 	"os"
@@ -24,8 +24,9 @@ type config struct {
 	LogoutRedirect   string
 	AuthCodeCallback string
 	ServicesURL      string
+	FrontendHost     string
 	WebPort          string
-	Repo             repository2.Repository
+	Repo             repository.Repository
 }
 
 func main() {
@@ -66,6 +67,11 @@ func loadConfig() (*config, error) {
 		dsn = "host=localhost port=5432 user=postgres password=password dbname=oauth sslmode=disable timezone=UTC connect_timeout=5"
 	}
 
+	frontendHost := os.Getenv("FRONTEND_HOST")
+	if frontendHost == "" {
+		frontendHost = "http://localhost:3000"
+	}
+
 	conn := connectToDB(dsn)
 	if conn == nil {
 		log.Panic("Can't connect to Postgres!")
@@ -79,8 +85,9 @@ func loadConfig() (*config, error) {
 		LogoutRedirect:   "http://localhost:8080/",
 		AuthCodeCallback: "http://localhost:8080/authCodeRedirect",
 		ServicesURL:      "http://localhost:8082/billing/v1/services",
+		FrontendHost:     frontendHost,
 		WebPort:          port,
-		Repo:             repository2.NewPostgresRepository(conn),
+		Repo:             repository.NewPostgresRepository(conn),
 	}
 
 	return &app, nil
