@@ -4,9 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/dgrijalva/jwt-go"
 	"github.com/gorilla/sessions"
-	"html/template"
 	"io"
 	"learn.oauth.client/data/model"
 	"log"
@@ -20,40 +18,8 @@ const (
 )
 
 type HandlerConfig struct {
-	AppVar   *config
-	Store    *sessions.CookieStore
-	Template *template.Template
-}
-
-func homeHandler(w http.ResponseWriter, r *http.Request, config *HandlerConfig) {
-	// Retrieve SessionState and token response from the session
-	// to display on front-end
-	session, _ := config.Store.Get(r, "session")
-	sessionState := getSessionValue(session, SessionStateKey)
-	tokenResponse, err := getTokenResponseFromSession(session)
-	if err != nil {
-		// Create an empty token response object to avoid nil
-		log.Println("Error decoding token response:", err)
-		tokenResponse = &model.TokenResponseData{}
-	}
-
-	// Decode access token (JWT)
-	decodedToken, err := decodeAccessToken(tokenResponse.AccessToken)
-	if err != nil {
-		log.Println("Error decoding access token:", err)
-		// Handle the error and send an error message to the front-end
-	}
-
-	data := model.FrontData{
-		SessionState: sessionState,
-		Token:        tokenResponseToMap(*tokenResponse),
-		DecodedToken: decodedToken,
-	}
-
-	err = config.Template.Execute(w, data)
-	if err != nil {
-		log.Println("Template execution error:", err)
-	}
+	AppVar *config
+	Store  *sessions.CookieStore
 }
 
 func loginHandler(w http.ResponseWriter, r *http.Request, config *HandlerConfig) {
@@ -277,29 +243,6 @@ func getSessionValue(session *sessions.Session, key string) string {
 		}
 	}
 	return ""
-}
-
-func tokenResponseToMap(response model.TokenResponseData) map[string]interface{} {
-	data := make(map[string]interface{})
-	data["AccessToken"] = response.AccessToken
-	data["TokenType"] = response.TokenType
-	data["ExpiresIn"] = response.ExpiresIn
-	data["RefreshToken"] = response.RefreshToken
-	data["Scope"] = response.Scope
-	return data
-}
-
-func decodeAccessToken(accessToken string) (map[string]interface{}, error) {
-	token, _, err := new(jwt.Parser).ParseUnverified(accessToken, jwt.MapClaims{})
-	if err != nil {
-		return nil, err
-	}
-
-	if claims, ok := token.Claims.(jwt.MapClaims); ok {
-		return claims, nil
-	}
-
-	return nil, fmt.Errorf("invalid token")
 }
 
 func getTokenResponseFromSession(session *sessions.Session) (*model.TokenResponseData, error) {

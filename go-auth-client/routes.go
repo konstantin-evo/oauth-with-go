@@ -16,15 +16,6 @@ func routes(handlerConfig *HandlerConfig) *mux.Router {
 	router := mux.NewRouter()
 	router.Use(loggingMiddleware)
 
-	// Create a file server to serve static files from the "src" directory,
-	// Specify a prefix for static files and attach the file server to the route for serving static files
-	staticFileServer := http.FileServer(http.Dir("src"))
-	staticFilesRoute := "/src/"
-	router.PathPrefix(staticFilesRoute).Handler(http.StripPrefix(staticFilesRoute, staticFileServer))
-
-	router.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		homeHandler(w, r, handlerConfig)
-	})
 	router.HandleFunc("/login", func(w http.ResponseWriter, r *http.Request) {
 		loginHandler(w, r, handlerConfig)
 	})

@@ -3,7 +3,9 @@ package repository
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"learn.oauth.client/data/model"
+	"log"
 	"time"
 )
 
@@ -43,4 +45,35 @@ func (repo *PostgresRepository) Insert(token model.TokenResponseData) (int, erro
 	}
 
 	return newID, nil
+}
+
+func (repo *PostgresRepository) GetByAccessToken(accessToken string) (*model.TokenResponseData, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), dbTimeout)
+	defer cancel()
+
+	stmt := `
+        SELECT access_token, token_type, expires_in, refresh_token, scope
+        FROM oauth
+        WHERE access_token = $1
+    `
+
+	var tokenData model.TokenResponseData
+	err := repo.Conn.QueryRowContext(ctx, stmt, accessToken).Scan(
+		&tokenData.AccessToken,
+		&tokenData.TokenType,
+		&tokenData.ExpiresIn,
+		&tokenData.RefreshToken,
+		&tokenData.Scope,
+	)
+
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			log.Printf("TokenResponse not found by accessToken: %v\n", accessToken)
+			return nil, nil
+		}
+		log.Printf("Error executing database query: %v\n", err)
+		return nil, err
+	}
+
+	return &tokenData, nil
 }

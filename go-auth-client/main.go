@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"fmt"
 	"github.com/gorilla/sessions"
-	"html/template"
 	"learn.oauth.client/data/repository"
 	"log"
 	"net/http"
@@ -95,12 +94,10 @@ func loadConfig() (*config, error) {
 
 func loadHandlerConfig(app *config) (*HandlerConfig, error) {
 	store := sessions.NewCookieStore([]byte("your-secret-key"))
-	t := template.Must(template.ParseFiles("src/template/index.html"))
 
 	return &HandlerConfig{
-		AppVar:   app,
-		Store:    store,
-		Template: t,
+		AppVar: app,
+		Store:  store,
 	}, nil
 }
 
