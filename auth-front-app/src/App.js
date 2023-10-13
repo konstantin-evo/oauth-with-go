@@ -2,20 +2,14 @@ import React, {useState, useEffect} from 'react';
 import Cookies from 'js-cookie';
 import AuthBanner from "./component/AuthBanner";
 import Header from './component/Header';
-import {TokenDetails} from './component/ProtectedResource';
-import {DecodedAccessToken} from './component/ProtectedResource';
+import {TokenDetails} from './component/TokenDetails';
+import {DecodedAccessToken} from './component/DecodedAccessToken';
 import {ProtectedResource} from './component/ProtectedResource';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import 'bootstrap/dist/js/bootstrap.bundle.min.js';
 import config from './config';
 
 import {
-    dummyAccessToken,
-    dummyExpiresIn,
-    dummyRefreshToken,
-    dummyScope,
-    dummyTokenType,
-    dummyDecodedToken,
     dummyResourceDetails,
 } from './dummyData';
 
@@ -62,14 +56,8 @@ function App() {
                 <div className="row">
                     {hasSession && (
                         <>
-                            <TokenDetails
-                                accessToken={dummyAccessToken}
-                                expiresIn={dummyExpiresIn}
-                                refreshToken={dummyRefreshToken}
-                                scope={dummyScope}
-                                tokenType={dummyTokenType}
-                            />
-                            <DecodedAccessToken decodedToken={dummyDecodedToken}/>
+                            <TokenDetails/>
+                            <DecodedAccessToken/>
                             <ProtectedResource resourceDetails={dummyResourceDetails}/>
                         </>
                     )}

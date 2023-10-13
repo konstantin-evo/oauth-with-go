@@ -32,6 +32,10 @@ func routes(handlerConfig *HandlerConfig) *mux.Router {
 		refreshTokenHandler(w, r, handlerConfig)
 	})
 
+	router.HandleFunc("/tokenData", func(w http.ResponseWriter, r *http.Request) {
+		getTokenData(w, r, handlerConfig)
+	})
+
 	return router
 }
 

@@ -233,18 +233,6 @@ func buildLogoutURL(appVar *config) string {
 	return u.String()
 }
 
-func getSessionValue(session *sessions.Session, key string) string {
-	value := session.Values[key]
-	if value != nil {
-		if strValue, ok := value.(string); ok {
-			return strValue // Value is a string, return it as is
-		} else if byteSliceValue, ok := value.([]uint8); ok {
-			return string(byteSliceValue) // Convert byte slice to string
-		}
-	}
-	return ""
-}
-
 func getTokenResponseFromSession(session *sessions.Session) (*model.TokenResponseData, error) {
 	tokenResponseStr := getSessionValue(session, TokenResponseKey)
 
@@ -261,16 +249,4 @@ func getTokenResponseFromSession(session *sessions.Session) (*model.TokenRespons
 	}
 
 	return &tokenResponse, nil
-}
-
-func setCookies(w http.ResponseWriter, tokenResponse model.TokenResponseData, session string) {
-	http.SetCookie(w, &http.Cookie{
-		Name:  "access_token",
-		Value: tokenResponse.AccessToken,
-	})
-
-	http.SetCookie(w, &http.Cookie{
-		Name:  "session",
-		Value: session,
-	})
 }
