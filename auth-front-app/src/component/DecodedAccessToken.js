@@ -1,7 +1,21 @@
 import React from "react";
 
-function DecodedAccessToken({accessToken}) {
-    const decodedToken = decodeAccessToken(accessToken);
+function DecodedAccessToken({tokenData}) {
+
+    if (!tokenData) {
+        return (
+            <div className="col-md-4 mb-4">
+                <div className="card h-100">
+                    <div className="card-header">
+                        Decoded Access Token
+                    </div>
+                    <div className="card-body overflow-auto">Loading token details...</div>
+                </div>
+            </div>
+        );
+    }
+
+    const decodedToken = decodeAccessToken(tokenData.access_token);
 
     function decodeAccessToken(accessToken) {
         try {
@@ -35,10 +49,10 @@ function DecodedAccessToken({accessToken}) {
                 </div>
                 <div className="card-body overflow-auto">
                     {Object.keys(decodedToken).map((key) => (
-                        <div key={key}>
+                        <>
                             <h6 className="card-subtitle mb-2 text-muted">{key}</h6>
                             <p className="card-text">{decodedToken[key]}</p>
-                        </div>
+                        </>
                     ))}
                 </div>
             </div>
