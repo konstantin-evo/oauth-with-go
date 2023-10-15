@@ -17,23 +17,23 @@ func routes(handlerConfig *HandlerConfig) *mux.Router {
 	router.Use(loggingMiddleware)
 
 	router.HandleFunc("/login", func(w http.ResponseWriter, r *http.Request) {
-		loginHandler(w, r, handlerConfig)
+		LoginHandler(w, r, handlerConfig)
 	})
 	router.HandleFunc("/services", func(w http.ResponseWriter, r *http.Request) {
-		servicesHandler(w, r, handlerConfig)
+		ServicesHandler(w, r, handlerConfig)
 	})
 	router.HandleFunc("/logout", func(w http.ResponseWriter, r *http.Request) {
-		logoutHandler(w, r, handlerConfig)
+		LogoutHandler(w, r, handlerConfig)
 	})
 	router.HandleFunc("/authCodeRedirect", func(w http.ResponseWriter, r *http.Request) {
-		authCodeRedirectHandler(w, r, handlerConfig)
+		AuthCodeRedirectHandler(w, r, handlerConfig)
 	})
 	router.HandleFunc("/refreshToken", func(w http.ResponseWriter, r *http.Request) {
-		refreshTokenHandler(w, r, handlerConfig)
+		RefreshTokenHandler(w, r, handlerConfig)
 	})
 
 	router.HandleFunc("/tokenData", func(w http.ResponseWriter, r *http.Request) {
-		getTokenData(w, r, handlerConfig)
+		GetTokenData(w, r, handlerConfig)
 	})
 
 	return router

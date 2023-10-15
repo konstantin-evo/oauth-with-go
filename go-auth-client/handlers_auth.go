@@ -22,12 +22,12 @@ type HandlerConfig struct {
 	Store  *sessions.CookieStore
 }
 
-func loginHandler(w http.ResponseWriter, r *http.Request, config *HandlerConfig) {
+func LoginHandler(w http.ResponseWriter, r *http.Request, config *HandlerConfig) {
 	redirectURL := buildAuthURL(config.AppVar)
 	http.Redirect(w, r, redirectURL, http.StatusFound)
 }
 
-func logoutHandler(w http.ResponseWriter, r *http.Request, config *HandlerConfig) {
+func LogoutHandler(w http.ResponseWriter, r *http.Request, config *HandlerConfig) {
 	session, _ := config.Store.Get(r, "session")
 	delete(session.Values, SessionStateKey)
 	delete(session.Values, TokenResponseKey)
@@ -41,7 +41,7 @@ func logoutHandler(w http.ResponseWriter, r *http.Request, config *HandlerConfig
 	http.Redirect(w, r, redirectURL, http.StatusFound)
 }
 
-func authCodeRedirectHandler(w http.ResponseWriter, r *http.Request, config *HandlerConfig) {
+func AuthCodeRedirectHandler(w http.ResponseWriter, r *http.Request, config *HandlerConfig) {
 	authCode := r.URL.Query().Get("code")
 	sessionState := r.URL.Query().Get("session_state")
 
@@ -81,55 +81,7 @@ func authCodeRedirectHandler(w http.ResponseWriter, r *http.Request, config *Han
 	http.Redirect(w, r, config.AppVar.FrontendHost, http.StatusSeeOther)
 }
 
-func exchangeAuthCodeForToken(authCode string, appVar *config) ([]byte, error) {
-	data := url.Values{}
-	data.Set("grant_type", "authorization_code")
-	data.Set("client_id", appVar.AppID)
-	data.Set("client_secret", "1ANIYGdYJhdeMjXOn6qrSmMU9wiUkXQ2")
-	data.Set("code", authCode)
-	data.Set("redirect_uri", appVar.AuthCodeCallback)
-
-	req, err := http.NewRequest("POST", appVar.TokenURL, bytes.NewBufferString(data.Encode()))
-	if err != nil {
-		return nil, err
-	}
-
-	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
-
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, err
-	}
-
-	defer func(Body io.ReadCloser) {
-		err := Body.Close()
-		if err != nil {
-			log.Printf("Error closing response body: %v", err)
-		}
-	}(resp.Body)
-
-	if resp.StatusCode != http.StatusOK {
-		responseBody, _ := io.ReadAll(resp.Body)
-		err := resp.Body.Close()
-		if err != nil {
-			log.Printf("Error closing response body: %v", err)
-			return nil, err
-		}
-
-		return nil, fmt.Errorf("token request returned status code %d. Response body: %s", resp.StatusCode, responseBody)
-	}
-
-	// Read the response body into a byte slice
-	tokenResponse, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
-
-	return tokenResponse, nil
-}
-
-func refreshTokenHandler(w http.ResponseWriter, r *http.Request, config *HandlerConfig) {
+func RefreshTokenHandler(w http.ResponseWriter, r *http.Request, config *HandlerConfig) {
 	// Get the current Refresh Token from the session
 	session, _ := config.Store.Get(r, "session")
 	tokenResponse, err := getTokenResponseFromSession(session)
@@ -200,6 +152,54 @@ func refreshTokenHandler(w http.ResponseWriter, r *http.Request, config *Handler
 	}
 
 	http.Redirect(w, r, "/", http.StatusSeeOther)
+}
+
+func exchangeAuthCodeForToken(authCode string, appVar *config) ([]byte, error) {
+	data := url.Values{}
+	data.Set("grant_type", "authorization_code")
+	data.Set("client_id", appVar.AppID)
+	data.Set("client_secret", "1ANIYGdYJhdeMjXOn6qrSmMU9wiUkXQ2")
+	data.Set("code", authCode)
+	data.Set("redirect_uri", appVar.AuthCodeCallback)
+
+	req, err := http.NewRequest("POST", appVar.TokenURL, bytes.NewBufferString(data.Encode()))
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+
+	defer func(Body io.ReadCloser) {
+		err := Body.Close()
+		if err != nil {
+			log.Printf("Error closing response body: %v", err)
+		}
+	}(resp.Body)
+
+	if resp.StatusCode != http.StatusOK {
+		responseBody, _ := io.ReadAll(resp.Body)
+		err := resp.Body.Close()
+		if err != nil {
+			log.Printf("Error closing response body: %v", err)
+			return nil, err
+		}
+
+		return nil, fmt.Errorf("token request returned status code %d. Response body: %s", resp.StatusCode, responseBody)
+	}
+
+	// Read the response body into a byte slice
+	tokenResponse, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	return tokenResponse, nil
 }
 
 func buildAuthURL(appVar *config) string {

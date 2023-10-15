@@ -10,7 +10,7 @@ import (
 	"time"
 )
 
-func servicesHandler(w http.ResponseWriter, r *http.Request, config *HandlerConfig) {
+func ServicesHandler(w http.ResponseWriter, r *http.Request, config *HandlerConfig) {
 	// Create a request to the protected resource endpoint
 	req, err := http.NewRequest("GET", config.AppVar.ServicesURL, nil)
 	if err != nil {

@@ -5,7 +5,7 @@ import (
 	"strings"
 )
 
-func getTokenData(w http.ResponseWriter, r *http.Request, config *HandlerConfig) {
+func GetTokenData(w http.ResponseWriter, r *http.Request, config *HandlerConfig) {
 	// Add CORS headers to allow access from specific origins
 	w.Header().Set("Access-Control-Allow-Origin", config.AppVar.FrontendHost)
 	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE")
