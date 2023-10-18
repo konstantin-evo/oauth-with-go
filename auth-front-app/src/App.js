@@ -10,13 +10,10 @@ import 'bootstrap/dist/css/bootstrap.min.css';
 import 'bootstrap/dist/js/bootstrap.bundle.min.js';
 import config from './config';
 
-import {
-    dummyResourceDetails,
-} from './dummyData';
-
 function App() {
     const [hasSession, setHasSession] = useState(false);
     const [tokenData, setTokenData] = useState(null);
+    const [protectedResourceData, setProtectedResourceData] = useState(null);
 
     useEffect(() => {
         const sessionName = Cookies.get('session');
@@ -91,7 +88,29 @@ function App() {
     };
 
     const handleGetProtectedResource = () => {
-        // Implement fetching protected resource here
+        const getProtectedResourceUrl = `${config.authClientUrl}/services`;
+        const accessToken = getCookieValue('access_token');
+        const headers = {
+            'Authorization': `Bearer ${accessToken}`
+        };
+
+        fetch(getProtectedResourceUrl, {
+            method: 'GET',
+            headers: headers
+        })
+            .then(response => {
+                if (response.ok) {
+                    return response.json();
+                } else {
+                    throw new Error('Failed to get protected resource');
+                }
+            })
+            .then(data => {
+                setProtectedResourceData(data);
+            })
+            .catch(error => {
+                console.error(error);
+            });
     };
 
     return (
@@ -109,7 +128,7 @@ function App() {
                         <>
                             <TokenDetails tokenData={tokenData}/>
                             <DecodedAccessToken tokenData={tokenData} />
-                            <ProtectedResource resourceDetails={dummyResourceDetails}/>
+                            <ProtectedResource resourceDetails={protectedResourceData ? protectedResourceData.services : null}/>
                         </>
                     )}
                 </div>

@@ -19,9 +19,6 @@ func routes(handlerConfig *HandlerConfig) *mux.Router {
 	router.HandleFunc("/login", func(w http.ResponseWriter, r *http.Request) {
 		LoginHandler(w, r, handlerConfig)
 	})
-	router.HandleFunc("/services", func(w http.ResponseWriter, r *http.Request) {
-		ServicesHandler(w, r, handlerConfig)
-	})
 	router.HandleFunc("/logout", func(w http.ResponseWriter, r *http.Request) {
 		LogoutHandler(w, r, handlerConfig)
 	})
@@ -33,7 +30,10 @@ func routes(handlerConfig *HandlerConfig) *mux.Router {
 		RefreshTokenHandler(w, r, handlerConfig)
 	})
 	router.HandleFunc("/tokenData", func(w http.ResponseWriter, r *http.Request) {
-		GetTokenHandler(w, r, handlerConfig)
+		GetTokenDataHandler(w, r, handlerConfig)
+	})
+	router.HandleFunc("/services", func(w http.ResponseWriter, r *http.Request) {
+		ServicesHandler(w, r, handlerConfig)
 	})
 
 	return router

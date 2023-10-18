@@ -8,7 +8,7 @@ import (
 	"strings"
 )
 
-func GetTokenHandler(w http.ResponseWriter, r *http.Request, config *HandlerConfig) {
+func GetTokenDataHandler(w http.ResponseWriter, r *http.Request, config *HandlerConfig) {
 	// Add CORS headers to allow access from specific origins
 	setCORSHeaders(w, config)
 

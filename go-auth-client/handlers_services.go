@@ -7,10 +7,20 @@ import (
 	"learn.oauth.client/data/model"
 	"log"
 	"net/http"
+	"strings"
 	"time"
 )
 
 func ServicesHandler(w http.ResponseWriter, r *http.Request, config *HandlerConfig) {
+	// Add CORS headers to allow access from specific origins
+	setCORSHeaders(w, config)
+
+	// If this is a preflight request, send an empty response
+	if r.Method == "OPTIONS" {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+
 	// Create a request to the protected resource endpoint
 	req, err := http.NewRequest("GET", config.AppVar.ServicesURL, nil)
 	if err != nil {
@@ -19,14 +29,15 @@ func ServicesHandler(w http.ResponseWriter, r *http.Request, config *HandlerConf
 		return
 	}
 
-	session, _ := config.Store.Get(r, "session")
-	tokenResponse, err := getTokenResponseFromSession(session)
-	if err != nil {
-		log.Println("Error decoding token response:", err)
+	authorizationHeader := r.Header.Get("Authorization")
+	if authorizationHeader == "" {
+		http.Error(w, "Authorization header is missing", http.StatusUnauthorized)
 		return
 	}
 
-	req.Header.Add("Authorization", "Bearer "+tokenResponse.AccessToken)
+	accessToken := strings.TrimPrefix(authorizationHeader, "Bearer ")
+
+	req.Header.Add("Authorization", "Bearer "+accessToken)
 
 	ctx, cancelFunc := context.WithTimeout(context.Background(), 500*time.Millisecond)
 	defer cancelFunc()
