@@ -28,12 +28,12 @@ func routes(handlerConfig *HandlerConfig) *mux.Router {
 	router.HandleFunc("/authCodeRedirect", func(w http.ResponseWriter, r *http.Request) {
 		AuthCodeRedirectHandler(w, r, handlerConfig)
 	})
+
 	router.HandleFunc("/refreshToken", func(w http.ResponseWriter, r *http.Request) {
 		RefreshTokenHandler(w, r, handlerConfig)
 	})
-
 	router.HandleFunc("/tokenData", func(w http.ResponseWriter, r *http.Request) {
-		GetTokenData(w, r, handlerConfig)
+		GetTokenHandler(w, r, handlerConfig)
 	})
 
 	return router

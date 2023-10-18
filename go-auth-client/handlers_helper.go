@@ -55,3 +55,9 @@ func setCookies(w http.ResponseWriter, tokenResponse model.TokenResponseData, se
 		Value: session,
 	})
 }
+
+func setCORSHeaders(w http.ResponseWriter, config *HandlerConfig) {
+	w.Header().Set("Access-Control-Allow-Origin", config.AppVar.FrontendHost)
+	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+}

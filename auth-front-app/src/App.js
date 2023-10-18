@@ -64,7 +64,30 @@ function App() {
     };
 
     const handleRefreshToken = () => {
-        // Implement token refresh logic here
+        const refreshTokenUrl = `${config.authClientUrl}/refreshToken`;
+        const accessToken = getCookieValue('access_token');
+        const headers = {
+            'Authorization': `Bearer ${accessToken}`
+        };
+
+        fetch(refreshTokenUrl, {
+            method: 'GET',
+            headers: headers
+        })
+            .then(response => {
+                if (response.ok) {
+                    return response.json();
+                } else {
+                    throw new Error('Failed to refresh token');
+                }
+            })
+            .then(data => {
+                document.cookie = `access_token=${data.access_token}`;
+                window.location.href = window.location.href;
+            })
+            .catch(error => {
+                console.error(error);
+            });
     };
 
     const handleGetProtectedResource = () => {
