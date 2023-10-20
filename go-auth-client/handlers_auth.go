@@ -37,7 +37,7 @@ func AuthCodeRedirectHandler(w http.ResponseWriter, r *http.Request, config *Han
 	sessionState := r.URL.Query().Get("session_state")
 
 	// Exchange auth code for token
-	tokenBytes, err := exchangeAuthCodeForToken(authCode, config.AppVar)
+	tokenBytes, err := exchangeAuthCodeForToken(authCode, config)
 	if err != nil {
 		log.Println("Error exchanging auth code for token:", err)
 		http.Error(w, "Failed to exchange authorization code for token", http.StatusInternalServerError)
@@ -73,104 +73,24 @@ func AuthCodeRedirectHandler(w http.ResponseWriter, r *http.Request, config *Han
 }
 
 func SendRefreshTokenRequest(w http.ResponseWriter, config *HandlerConfig, refreshToken string) ([]byte, error) {
-
 	data := url.Values{}
 	data.Set("grant_type", "refresh_token")
 	data.Set("client_id", config.AppVar.AppID)
 	data.Set("client_secret", "1ANIYGdYJhdeMjXOn6qrSmMU9wiUkXQ2")
 	data.Set("refresh_token", refreshToken)
 
-	req, err := http.NewRequest("POST", config.AppVar.TokenURL, bytes.NewBufferString(data.Encode()))
-	if err != nil {
-		log.Println("Error creating a new HTTP request:", err)
-		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
-		return nil, err
-	}
-
-	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
-
-	// Send the request to refresh the token
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		log.Println("Error sending HTTP request:", err)
-		http.Error(w, "Failed to send token refresh request", http.StatusInternalServerError)
-		return nil, err
-	}
-
-	defer func(Body io.ReadCloser) {
-		err := Body.Close()
-		if err != nil {
-			log.Printf("Error closing response body: %v", err)
-		}
-	}(resp.Body)
-
-	if resp.StatusCode != http.StatusOK {
-		responseBody, _ := io.ReadAll(resp.Body)
-		err := resp.Body.Close()
-		if err != nil {
-			log.Printf("Error closing response body: %v", err)
-			return nil, err
-		}
-
-		return nil, fmt.Errorf("token request returned status code %d. Response body: %s", resp.StatusCode, responseBody)
-	}
-
-	// Read the response body into a byte slice
-	tokenResponse, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
-
-	return tokenResponse, nil
+	return sendTokenRequest(w, config, data)
 }
 
-func exchangeAuthCodeForToken(authCode string, appVar *config) ([]byte, error) {
+func exchangeAuthCodeForToken(authCode string, config *HandlerConfig) ([]byte, error) {
 	data := url.Values{}
 	data.Set("grant_type", "authorization_code")
-	data.Set("client_id", appVar.AppID)
+	data.Set("client_id", config.AppVar.AppID)
 	data.Set("client_secret", "1ANIYGdYJhdeMjXOn6qrSmMU9wiUkXQ2")
 	data.Set("code", authCode)
-	data.Set("redirect_uri", appVar.AuthCodeCallback)
+	data.Set("redirect_uri", config.AppVar.AuthCodeCallback)
 
-	req, err := http.NewRequest("POST", appVar.TokenURL, bytes.NewBufferString(data.Encode()))
-	if err != nil {
-		return nil, err
-	}
-
-	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
-
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, err
-	}
-
-	defer func(Body io.ReadCloser) {
-		err := Body.Close()
-		if err != nil {
-			log.Printf("Error closing response body: %v", err)
-		}
-	}(resp.Body)
-
-	if resp.StatusCode != http.StatusOK {
-		responseBody, _ := io.ReadAll(resp.Body)
-		err := resp.Body.Close()
-		if err != nil {
-			log.Printf("Error closing response body: %v", err)
-			return nil, err
-		}
-
-		return nil, fmt.Errorf("token request returned status code %d. Response body: %s", resp.StatusCode, responseBody)
-	}
-
-	// Read the response body into a byte slice
-	tokenResponse, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
-
-	return tokenResponse, nil
+	return sendTokenRequest(nil, config, data)
 }
 
 func buildAuthURL(appVar *config) string {
@@ -202,4 +122,49 @@ func buildLogoutURL(appVar *config) string {
 	u.RawQuery = q.Encode()
 
 	return u.String()
+}
+
+func sendTokenRequest(w http.ResponseWriter, config *HandlerConfig, data url.Values) ([]byte, error) {
+	req, err := http.NewRequest("POST", config.AppVar.TokenURL, bytes.NewBufferString(data.Encode()))
+	if err != nil {
+		log.Println("Error creating a new HTTP request:", err)
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		log.Println("Error sending HTTP request:", err)
+		http.Error(w, "Failed to send token request", http.StatusInternalServerError)
+		return nil, err
+	}
+
+	defer func(Body io.ReadCloser) {
+		err := Body.Close()
+		if err != nil {
+			log.Printf("Error closing response body: %v", err)
+		}
+	}(resp.Body)
+
+	if resp.StatusCode != http.StatusOK {
+		responseBody, _ := io.ReadAll(resp.Body)
+		err := resp.Body.Close()
+		if err != nil {
+			log.Printf("Error closing response body: %v", err)
+			return nil, err
+		}
+
+		return nil, fmt.Errorf("token request returned status code %d. Response body: %s", resp.StatusCode, responseBody)
+	}
+
+	// Read the response body into a byte slice
+	tokenResponse, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	return tokenResponse, nil
 }
