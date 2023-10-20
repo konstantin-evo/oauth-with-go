@@ -60,31 +60,28 @@ function App() {
         window.location.href = logoutUrl;
     };
 
-    const handleRefreshToken = () => {
+    const handleRefreshToken = async () => {
         const refreshTokenUrl = `${config.authClientUrl}/refreshToken`;
         const accessToken = getCookieValue('access_token');
         const headers = {
             'Authorization': `Bearer ${accessToken}`
         };
 
-        fetch(refreshTokenUrl, {
-            method: 'GET',
-            headers: headers
-        })
-            .then(response => {
-                if (response.ok) {
-                    return response.json();
-                } else {
-                    throw new Error('Failed to refresh token');
-                }
-            })
-            .then(data => {
-                document.cookie = `access_token=${data.access_token}`;
-                window.location.href = window.location.href;
-            })
-            .catch(error => {
-                console.error(error);
+        try {
+            const response = await fetch(refreshTokenUrl, {
+                method: 'GET',
+                headers: headers
             });
+            if (response.ok) {
+                const refreshedTokenData = await response.json();
+                document.cookie = `access_token=${refreshedTokenData.access_token}`;
+                setTokenData(refreshedTokenData);
+            } else {
+                console.error('Failed to refresh token:', response.status);
+            }
+        } catch (error) {
+            console.error('An error occurred while refreshing token:', error);
+        }
     };
 
     const handleGetProtectedResource = () => {
@@ -127,8 +124,9 @@ function App() {
                     {hasSession && (
                         <>
                             <TokenDetails tokenData={tokenData}/>
-                            <DecodedAccessToken tokenData={tokenData} />
-                            <ProtectedResource resourceDetails={protectedResourceData ? protectedResourceData.services : null}/>
+                            <DecodedAccessToken tokenData={tokenData}/>
+                            <ProtectedResource
+                                resourceDetails={protectedResourceData ? protectedResourceData.services : null}/>
                         </>
                     )}
                 </div>
