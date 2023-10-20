@@ -13,8 +13,7 @@ import (
 )
 
 const (
-	SessionStateKey  = "SessionState"
-	TokenResponseKey = "TokenResponse"
+	SessionStateKey = "SessionState"
 )
 
 type HandlerConfig struct {
@@ -27,18 +26,10 @@ func LoginHandler(w http.ResponseWriter, r *http.Request, config *HandlerConfig)
 	http.Redirect(w, r, redirectURL, http.StatusFound)
 }
 
-func LogoutHandler(w http.ResponseWriter, r *http.Request, config *HandlerConfig) {
-	session, _ := config.Store.Get(r, "session")
-	delete(session.Values, SessionStateKey)
-	delete(session.Values, TokenResponseKey)
-
-	err := session.Save(r, w)
-	if err != nil {
-		log.Println("Error saving session:", err)
-	}
-
-	redirectURL := buildLogoutURL(config.AppVar)
-	http.Redirect(w, r, redirectURL, http.StatusFound)
+func LogoutRedirectHandler(w http.ResponseWriter, r *http.Request, config *HandlerConfig) {
+	clearCookie(w, "access_token")
+	clearCookie(w, "session")
+	http.Redirect(w, r, config.AppVar.FrontendHost, http.StatusFound)
 }
 
 func AuthCodeRedirectHandler(w http.ResponseWriter, r *http.Request, config *HandlerConfig) {
@@ -211,22 +202,4 @@ func buildLogoutURL(appVar *config) string {
 	u.RawQuery = q.Encode()
 
 	return u.String()
-}
-
-func getTokenResponseFromSession(session *sessions.Session) (*model.TokenResponseData, error) {
-	tokenResponseStr := getSessionValue(session, TokenResponseKey)
-
-	if tokenResponseStr == "" {
-		return nil, fmt.Errorf("token response not found in session")
-	}
-
-	tokenResponseBytes := []byte(tokenResponseStr)
-
-	var tokenResponse model.TokenResponseData
-	err := json.Unmarshal(tokenResponseBytes, &tokenResponse)
-	if err != nil {
-		return nil, err
-	}
-
-	return &tokenResponse, nil
 }

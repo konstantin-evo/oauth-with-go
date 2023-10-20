@@ -56,8 +56,8 @@ function App() {
     };
 
     const handleLogout = () => {
-        Cookies.remove('session');
-        setHasSession(false);
+        const logoutUrl = `${config.authClientUrl}/logout`;
+        window.location.href = logoutUrl;
     };
 
     const handleRefreshToken = () => {

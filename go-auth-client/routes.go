@@ -16,16 +16,21 @@ func routes(handlerConfig *HandlerConfig) *mux.Router {
 	router := mux.NewRouter()
 	router.Use(loggingMiddleware)
 
+	/* Handler for interact with Auth server */
 	router.HandleFunc("/login", func(w http.ResponseWriter, r *http.Request) {
 		LoginHandler(w, r, handlerConfig)
 	})
-	router.HandleFunc("/logout", func(w http.ResponseWriter, r *http.Request) {
-		LogoutHandler(w, r, handlerConfig)
+	router.HandleFunc("/logoutRedirect", func(w http.ResponseWriter, r *http.Request) {
+		LogoutRedirectHandler(w, r, handlerConfig)
 	})
 	router.HandleFunc("/authCodeRedirect", func(w http.ResponseWriter, r *http.Request) {
 		AuthCodeRedirectHandler(w, r, handlerConfig)
 	})
 
+	/* Handler for interact with Front-end */
+	router.HandleFunc("/logout", func(w http.ResponseWriter, r *http.Request) {
+		LogoutHandler(w, r, handlerConfig)
+	})
 	router.HandleFunc("/refreshToken", func(w http.ResponseWriter, r *http.Request) {
 		RefreshTokenHandler(w, r, handlerConfig)
 	})
@@ -33,7 +38,7 @@ func routes(handlerConfig *HandlerConfig) *mux.Router {
 		GetTokenDataHandler(w, r, handlerConfig)
 	})
 	router.HandleFunc("/services", func(w http.ResponseWriter, r *http.Request) {
-		ServicesHandler(w, r, handlerConfig)
+		GetProtectedResourceHandler(w, r, handlerConfig)
 	})
 
 	return router

@@ -81,7 +81,7 @@ func loadConfig() (*config, error) {
 		AuthURL:          "http://localhost:8081/realms/customRealm/protocol/openid-connect/auth",
 		LogoutURL:        "http://localhost:8081/realms/customRealm/protocol/openid-connect/logout",
 		TokenURL:         "http://localhost:8081/realms/customRealm/protocol/openid-connect/token",
-		LogoutRedirect:   "http://localhost:8080/",
+		LogoutRedirect:   "http://localhost:8080/logoutRedirect",
 		AuthCodeCallback: "http://localhost:8080/authCodeRedirect",
 		ServicesURL:      "http://localhost:8082/billing/v1/services",
 		FrontendHost:     frontendHost,
