@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	_ "github.com/jackc/pgconn"
@@ -17,6 +18,7 @@ import (
 
 type config struct {
 	AppID            string
+	AppSecret        string
 	AuthURL          string
 	TokenURL         string
 	LogoutURL        string
@@ -25,6 +27,7 @@ type config struct {
 	ServicesURL      string
 	FrontendHost     string
 	WebPort          string
+	WebHost          string
 	Repo             repository.Repository
 }
 
@@ -42,13 +45,14 @@ func main() {
 		log.Panic(err)
 	}
 
+	host := removeHTTPPrefix(app.WebHost)
 	// Start the HTTP server
 	server := &http.Server{
-		Addr:    fmt.Sprintf(":%s", app.WebPort),
+		Addr:    fmt.Sprintf("%s:%s", host, app.WebPort),
 		Handler: routes(handlerConfig),
 	}
 
-	log.Printf("Server listening on port %s\n", app.WebPort)
+	log.Printf("Server listening on %s:%s\n", host, app.WebPort)
 	if err := server.ListenAndServe(); err != nil {
 		log.Println(err)
 	}
@@ -58,17 +62,42 @@ func loadConfig() (*config, error) {
 
 	port := os.Getenv("PORT")
 	if port == "" {
-		port = "8080"
+		port = "8081"
 	}
 
-	dsn := os.Getenv("DSN")
-	if dsn == "" {
-		dsn = "host=localhost port=5432 user=postgres password=password dbname=oauth sslmode=disable timezone=UTC connect_timeout=5"
+	host := os.Getenv("HOST")
+	if host == "" {
+		host = "http://localhost"
 	}
 
 	frontendHost := os.Getenv("FRONTEND_HOST")
 	if frontendHost == "" {
 		frontendHost = "http://localhost:3000"
+	}
+
+	protectedResourceHost := os.Getenv("PROTECTED_RESOURCE_HOST")
+	if protectedResourceHost == "" {
+		protectedResourceHost = "http://localhost:8082"
+	}
+
+	keycloakHost := os.Getenv("KEYCLOAK_HOST")
+	if keycloakHost == "" {
+		keycloakHost = "http://localhost:8080"
+	}
+
+	clientID := os.Getenv("CLIENT_ID")
+	if clientID == "" {
+		clientID = "billingApp"
+	}
+
+	clientSecret := os.Getenv("CLIENT_SECRET")
+	if clientSecret == "" {
+		clientSecret = "1ANIYGdYJhdeMjXOn6qrSmMU9wiUkXQ2"
+	}
+
+	dsn := os.Getenv("DSN")
+	if dsn == "" {
+		dsn = "host=localhost port=5432 user=postgres password=password dbname=oauth sslmode=disable timezone=UTC connect_timeout=5"
 	}
 
 	conn := connectToDB(dsn)
@@ -77,15 +106,17 @@ func loadConfig() (*config, error) {
 	}
 
 	app := config{
-		AppID:            "billingApp",
-		AuthURL:          "http://localhost:8081/realms/customRealm/protocol/openid-connect/auth",
-		LogoutURL:        "http://localhost:8081/realms/customRealm/protocol/openid-connect/logout",
-		TokenURL:         "http://localhost:8081/realms/customRealm/protocol/openid-connect/token",
-		LogoutRedirect:   "http://localhost:8080/logoutRedirect",
-		AuthCodeCallback: "http://localhost:8080/authCodeRedirect",
-		ServicesURL:      "http://localhost:8082/billing/v1/services",
+		AppID:            clientID,
+		AppSecret:        clientSecret,
+		AuthURL:          keycloakHost + "/realms/customRealm/protocol/openid-connect/auth",
+		LogoutURL:        keycloakHost + "/realms/customRealm/protocol/openid-connect/logout",
+		TokenURL:         keycloakHost + "/realms/customRealm/protocol/openid-connect/token",
+		LogoutRedirect:   host + ":" + port + "/logoutRedirect",
+		AuthCodeCallback: host + ":" + port + "/authCodeRedirect",
+		ServicesURL:      protectedResourceHost + "/billing/v1/services",
 		FrontendHost:     frontendHost,
 		WebPort:          port,
+		WebHost:          host,
 		Repo:             repository.NewPostgresRepository(conn),
 	}
 
@@ -137,4 +168,14 @@ func openDB(dsn string) (*sql.DB, error) {
 	}
 
 	return db, nil
+}
+
+func removeHTTPPrefix(input string) string {
+	if strings.HasPrefix(input, "http://") {
+		return input[7:]
+	}
+	if strings.HasPrefix(input, "https://") {
+		return input[8:]
+	}
+	return input
 }

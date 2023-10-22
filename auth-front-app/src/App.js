@@ -23,7 +23,7 @@ function App() {
             console.log("Session not found.");
         }
 
-        const loginUrl = `${config.authClientUrl}/tokenData`;
+        const getTokenData = `${config.authClientUrl}/tokenData`;
         const handleGetTokenData = async () => {
             try {
                 const accessToken = getCookieValue('access_token');
@@ -31,7 +31,7 @@ function App() {
                     'Authorization': `Bearer ${accessToken}`
                 };
 
-                const response = await fetch(loginUrl, {
+                const response = await fetch(getTokenData, {
                     method: 'GET',
                     headers: headers
                 });

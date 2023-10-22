@@ -41,8 +41,13 @@ func loadConfig() (*config, error) {
 		port = "8082"
 	}
 
+	keycloakHost := os.Getenv("KEYCLOAK_HOST")
+	if keycloakHost == "" {
+		keycloakHost = "http://localhost:8080"
+	}
+
 	app := config{
-		tokenIntrospectURL: "http://localhost:8081/realms/customRealm/protocol/openid-connect/token/introspect",
+		tokenIntrospectURL: keycloakHost + "/realms/customRealm/protocol/openid-connect/token/introspect",
 		clientIntrospect:   "introspectClient",
 		clientSecret:       "Q7pFiY2pmkRl3Eq6eBjvmKWcZJTwmZSo",
 		webPort:            port,

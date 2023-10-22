@@ -76,7 +76,7 @@ func SendRefreshTokenRequest(w http.ResponseWriter, config *HandlerConfig, refre
 	data := url.Values{}
 	data.Set("grant_type", "refresh_token")
 	data.Set("client_id", config.AppVar.AppID)
-	data.Set("client_secret", "1ANIYGdYJhdeMjXOn6qrSmMU9wiUkXQ2")
+	data.Set("client_secret", config.AppVar.AppSecret)
 	data.Set("refresh_token", refreshToken)
 
 	return sendTokenRequest(w, config, data)
@@ -86,7 +86,7 @@ func exchangeAuthCodeForToken(authCode string, config *HandlerConfig) ([]byte, e
 	data := url.Values{}
 	data.Set("grant_type", "authorization_code")
 	data.Set("client_id", config.AppVar.AppID)
-	data.Set("client_secret", "1ANIYGdYJhdeMjXOn6qrSmMU9wiUkXQ2")
+	data.Set("client_secret", config.AppVar.AppSecret)
 	data.Set("code", authCode)
 	data.Set("redirect_uri", config.AppVar.AuthCodeCallback)
 
