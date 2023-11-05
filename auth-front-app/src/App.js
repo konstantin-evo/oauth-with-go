@@ -1,4 +1,4 @@
-import React, {useState, useEffect} from 'react';
+import React, {useEffect, useState} from 'react';
 import Cookies from 'js-cookie';
 import AuthBanner from "./component/AuthBanner";
 import Header from './component/Header';
@@ -51,13 +51,13 @@ function App() {
     }, []);
 
     const handleLogin = async () => {
-        const loginUrl = `${config.authClientUrl}/login`;
-        window.location.href = loginUrl;
+        window.location.href = `${config.authClientUrl}/login`;
     };
 
     const handleLogout = () => {
-        const logoutUrl = `${config.authClientUrl}/logout`;
-        window.location.href = logoutUrl;
+        document.cookie = 'access_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC;';
+        document.cookie = 'session=; expires=Thu, 01 Jan 1970 00:00:00 UTC;';
+        window.location.href = `${config.authClientUrl}/logout`;
     };
 
     const handleRefreshToken = async () => {

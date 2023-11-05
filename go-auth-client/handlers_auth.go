@@ -27,11 +27,10 @@ func LoginHandler(w http.ResponseWriter, r *http.Request, config *HandlerConfig)
 }
 
 func LogoutRedirectHandler(w http.ResponseWriter, r *http.Request, config *HandlerConfig) {
-	clearCookie(w, "access_token")
-	clearCookie(w, "session")
 	http.Redirect(w, r, config.AppVar.FrontendHost, http.StatusFound)
 }
 
+// AuthCodeRedirectHandler TODO: Use a JWT token and ensure it's both signed and encrypted for enhanced security
 func AuthCodeRedirectHandler(w http.ResponseWriter, r *http.Request, config *HandlerConfig) {
 	authCode := r.URL.Query().Get("code")
 	sessionState := r.URL.Query().Get("session_state")
@@ -68,8 +67,8 @@ func AuthCodeRedirectHandler(w http.ResponseWriter, r *http.Request, config *Han
 		log.Println("Error saving session:", err)
 	}
 
-	setCookies(w, tokenResponse, sessionState)
-	http.Redirect(w, r, config.AppVar.FrontendHost, http.StatusSeeOther)
+	redirectURL := config.AppVar.FrontendHost + "/loginRedirect?token=" + tokenResponse.AccessToken + "&session=" + sessionState
+	http.Redirect(w, r, redirectURL, http.StatusSeeOther)
 }
 
 func SendRefreshTokenRequest(w http.ResponseWriter, config *HandlerConfig, refreshToken string) ([]byte, error) {
