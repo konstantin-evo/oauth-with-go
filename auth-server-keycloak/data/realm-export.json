@@ -247,7 +247,6 @@
       "security-admin-console" : [ ],
       "admin-cli" : [ ],
       "account-console" : [ ],
-      "billingAppDocker" : [ ],
       "broker" : [ {
         "id" : "2abbbde3-31f3-4afe-86bb-29e4dcd845a3",
         "name" : "read-token",

@@ -2,7 +2,7 @@ version: '3'
 services:
   auth-server:
     build:
-      context: ./keycloak-auth-server
+      context: auth-server-keycloak
       dockerfile: Dockerfile
     container_name: auth-server-keycloak
     ports:
@@ -14,7 +14,7 @@ services:
 
   auth-client-backend:
     build:
-      context: ./go-auth-client
+      context: auth-client-bff
       dockerfile: Dockerfile
     container_name: auth-bff-app
     ports:
@@ -33,7 +33,7 @@ services:
 
   auth-client-frontend:
     build:
-      context: ./auth-front-app
+      context: auth-client-frontend
       dockerfile: Dockerfile
     container_name: auth-front-app
     ports:
@@ -43,7 +43,7 @@ services:
 
   protected-resource:
     build:
-      context: ./go-protected-resource
+      context: go-protected-resource
       dockerfile: Dockerfile
     container_name: auth-protected-resource
     ports:
