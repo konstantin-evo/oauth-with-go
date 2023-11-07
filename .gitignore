@@ -1,4 +1,6 @@
 /.idea/
-/go-protected-resource/.idea/
-/go-auth-client/.idea/
 .DS_Store
+/go-protected-resource/.idea/
+/auth-client-bff/.idea/
+/auth-client-frontend/node_modules/
+/auth-client-frontend/build/
