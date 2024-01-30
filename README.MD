@@ -146,7 +146,7 @@ To run the project, follow these steps:
 1. Clone the repository to your local machine
 
    ```shell
-   git clone https://github.com/konstantin-evo/aouth-with-go.git
+   git clone https://github.com/konstantin-evo/oauth-with-go.git
    ```
 
 2. Navigate to the project directory
